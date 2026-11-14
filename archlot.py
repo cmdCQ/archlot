@@ -31,7 +31,7 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 CONF_PATH = os.path.expanduser("~/.config/archlot/config.json")
 CSS_PATH = os.path.join(BASE, "style.css")
 
-IDLE_HEIGHT = 168
+IDLE_HEIGHT = 200
 OPEN_HEIGHT = 440
 BOTTOM_MARGIN = 48
 WIDTH = 820
@@ -280,6 +280,7 @@ class Archlot(Gtk.Application):
         self._end_stream()
         self._tool_label = None
         self.empty_state.set_visible(False)
+        self.msgbox.set_valign(Gtk.Align.START)
         bubble = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         bubble.add_css_class("user-bubble")
         bubble.set_halign(Gtk.Align.END)
@@ -516,6 +517,7 @@ class Archlot(Gtk.Application):
         self._tool_label = None
         self.msgbox.append(self.empty_state)
         self.empty_state.set_visible(True)
+        self.msgbox.set_valign(Gtk.Align.CENTER)
         self.collapse()
 
     def collapse(self):
