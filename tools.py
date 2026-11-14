@@ -251,7 +251,7 @@ class Tools:
         return {"text": "\n".join(lines) or "（空目录）"}
 
     def _t_screenshot(self, a):
-        scale = float(a.get("scale", 0.45))
+        scale = float(a.get("scale", 0.6))
         self.ui.hide_for_shot()
         try:
             rc, _, err = run(
@@ -272,7 +272,13 @@ class Tools:
 
     def _t_click(self, a):
         x, y = self._to_screen(int(a.get("x", 0)), int(a.get("y", 0)))
-        self.mouse.click(x, y, str(a.get("button", "left")), bool(a.get("double", False)))
+        parked = self.ui.park_panel(x, y)
+        try:
+            self.mouse.click(x, y, str(a.get("button", "left")),
+                             bool(a.get("double", False)))
+        finally:
+            if parked:
+                self.ui.unpark_panel()
         return {"text": f"已点击 ({int(x)}, {int(y)})"}
 
     def _t_move_mouse(self, a):
@@ -394,7 +400,7 @@ TOOLS = [
         "name": "screenshot",
         "description": "截取整个屏幕给自己看。之后 click/move_mouse 的坐标用截图图片像素。",
         "parameters": {"type": "object", "properties": {
-            "scale": {"type": "number", "description": "缩放，默认 0.6"},
+            "scale": {"type": "number", "description": "缩放，默认 0.6；要看小字/精确点击可临时用 0.8"},
         }},
     }},
     {"type": "function", "function": {

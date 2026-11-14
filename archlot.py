@@ -45,8 +45,9 @@ SYSTEM_PROMPT = """你是 Archlot，跑在用户 cqsomt 的 Arch Linux + niri �
 输出纯文本：不要用 Markdown 标记（**、#、```、表格竖线），需要强调就用普通句子。
 
 你有真正能干活的工具：执行 shell、读写文件、看屏幕、动鼠标、敲键盘、切窗口。
-- 只在真的需要看屏幕或找不着目标位置时才 screenshot；打字、按键后不要为了"确认"再截一张。
-- 坐标用最近一张截图的像素坐标。
+- 只在真的需要看屏幕或找不着目标位置时才 screenshot；单纯打字、按键后不必截图。
+- 坐标用最近一张截图的像素坐标。点按钮、输入框这类目标时，点它的中心，不要点边框或边缘（差几像素就会点空）。
+- 填表单时先把所有字段填完，最后截一张图确认内容对不对；发现点空了就重新点输入框中心再输入。
 - 能安全合并的连续动作放在同一轮里一次做完（例如 focus_window + press_key + type_text 一起调用），减少来回；只有结果不确定时才停下来看。
 - 危险命令（删除、sudo、关机等）会由程序弹窗让用户确认，你不用反复口头询问。
 - 绝不编造工具结果。做不到就直说做不到。
@@ -58,7 +59,7 @@ def load_config():
         "api_base": "https://api.deepseek.com",
         "model": "deepseek-flash",
         "max_tokens": 4096,
-        "max_rounds": 8,
+        "max_rounds": 24,
     }
     try:
         with open(CONF_PATH) as f:
@@ -138,6 +139,8 @@ class Archlot(Gtk.Application):
         self.msgbox.add_css_class("messages")
         self.msgbox.set_valign(Gtk.Align.START)
         self.scroll.set_child(self.msgbox)
+        self._cancel = threading.Event()
+        self._gen = 0
         self._stream_label = None
         self._stream_pending = ""
         self._stream_timer = 0
@@ -188,10 +191,14 @@ class Archlot(Gtk.Application):
         self.entry.connect("activate", self.on_send)
         self.spinner = Gtk.Spinner()
         self.spinner.set_visible(False)
+        self.status = Gtk.Label(label="")
+        self.status.add_css_class("status")
+        self.status.set_visible(False)
         self.hint = Gtk.Label(label="↵")
         self.hint.add_css_class("hint")
         bar.append(arrow)
         bar.append(self.entry)
+        bar.append(self.status)
         bar.append(self.hint)
         bar.append(self.spinner)
         root.append(bar)
@@ -201,6 +208,21 @@ class Archlot(Gtk.Application):
         win.add_controller(keys)
 
     # ------------------------------------------------------------ 文本渲染
+
+    def _tick_status(self):
+        if not self.busy:
+            return False
+        if getattr(self, "_awaiting_confirm", False):
+            self.status.set_text("等待确认")
+        else:
+            elapsed = int(time.time() - getattr(self, "_status_start", time.time()))
+            self.status.set_text(f"思考中 {elapsed}s")
+        return True
+
+    def cancel_agent(self):
+        self._cancel.set()
+        self.status.set_text("正在停止…")
+        self.status.set_visible(True)
 
     def _scroll_bottom(self):
         adj = self.scroll.get_vadjustment()
@@ -236,7 +258,9 @@ class Archlot(Gtk.Application):
         self.msgbox.append(bubble)
         GLib.idle_add(self._scroll_bottom)
 
-    def append_assistant(self, text):
+    def append_assistant(self, text, gen=None):
+        if gen is not None and gen != self._gen:
+            return False
         text = text.replace("`", "").replace("**", "")
         if not text:
             return False
@@ -280,7 +304,9 @@ class Archlot(Gtk.Application):
             self._stream_pending = ""
         self._stream_label = None
 
-    def note_tool(self, name, args):
+    def note_tool(self, name, args, gen=None):
+        if gen is not None and gen != self._gen:
+            return False
         self._end_stream()
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         row.add_css_class("tool-row")
@@ -298,7 +324,9 @@ class Archlot(Gtk.Application):
         self._scroll_bottom()
         return False
 
-    def note_result(self, text):
+    def note_result(self, text, gen=None):
+        if gen is not None and gen != self._gen:
+            return False
         if self._tool_label is None:
             return False
         first = (text or "").strip().splitlines()
@@ -309,10 +337,22 @@ class Archlot(Gtk.Application):
             self._tool_label.set_label(self._tool_label.get_label() + "  ·  " + line)
         return False
 
-    def append_error(self, text):
+    def append_error(self, text, gen=None):
+        if gen is not None and gen != self._gen:
+            return False
         self._end_stream()
         self._tool_label = None
         label = self._wrap_label(f"⚠ {text}", "error-text")
+        self.msgbox.append(label)
+        GLib.idle_add(self._scroll_bottom)
+        return False
+
+    def append_notice(self, text, gen=None):
+        if gen is not None and gen != self._gen:
+            return False
+        self._end_stream()
+        self._tool_label = None
+        label = self._wrap_label(text, "notice-text")
         self.msgbox.append(label)
         GLib.idle_add(self._scroll_bottom)
         return False
@@ -342,6 +382,8 @@ class Archlot(Gtk.Application):
         if keyval == Gdk.KEY_Escape:
             if self._confirm_event is not None and not self._confirm_event.is_set():
                 self._answer_confirm(False)
+            elif self.busy:
+                self.cancel_agent()
             else:
                 self.hide()
             return True
@@ -426,6 +468,17 @@ class Archlot(Gtk.Application):
         return False
 
     def clear(self):
+        self._gen += 1
+        if self.busy:
+            self._cancel.set()
+        self.busy = False
+        if getattr(self, "_status_timer", None):
+            GLib.source_remove(self._status_timer)
+            self._status_timer = None
+        self.status.set_visible(False)
+        self.spinner.stop()
+        self.spinner.set_visible(False)
+        self.hint.set_visible(True)
         self.messages = []
         self._end_stream()
         self._clear_messages()
@@ -449,6 +502,11 @@ class Archlot(Gtk.Application):
             return
         entry.set_text("")
         self.busy = True
+        self._cancel.clear()
+        self._status_start = time.time()
+        self._status_timer = GLib.timeout_add(1000, self._tick_status)
+        self.status.set_text("思考中 0s")
+        self.status.set_visible(True)
         self.hint.set_visible(False)
         self.spinner.set_visible(True)
         self.spinner.start()
@@ -457,37 +515,55 @@ class Archlot(Gtk.Application):
         threading.Thread(target=self.run_agent, args=(text,), daemon=True).start()
 
     def run_agent(self, text):
+        gen = self._gen
         self.messages.append({"role": "user", "content": text})
         try:
-            for _ in range(int(self.cfg.get("max_rounds", 8))):
+            max_rounds = int(self.cfg.get("max_rounds", 24))
+            for _ in range(max_rounds):
+                if self._cancel.is_set() or gen != self._gen:
+                    break
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + self.messages
                 _t0 = time.time()
                 msg, _finish = llm.stream_chat(
                     self.cfg, payload, TOOLS,
-                    on_text=lambda t: GLib.idle_add(self.append_assistant, t),
+                    on_text=lambda t: GLib.idle_add(self.append_assistant, t, gen),
+                    cancel=self._cancel,
                 )
-                _log(f"llm {time.time() - _t0:.2f}s")
+                _log(f"llm {time.time() - _t0:.2f}s finish={_finish}")
+                if self._cancel.is_set():
+                    break
+                if gen != self._gen:
+                    return
                 self.messages.append(msg)
                 calls = msg.get("tool_calls")
                 if not calls:
+                    if not (msg.get("content") or "").strip():
+                        GLib.idle_add(
+                            self.append_notice,
+                            "模型这次没有返回内容，任务可能没完成。可以再试一次。", gen)
                     break
                 pending_images = []
                 for tc in calls:
+                    if self._cancel.is_set() or gen != self._gen:
+                        break
                     name = tc["function"]["name"]
                     try:
                         args = json.loads(tc["function"]["arguments"] or "{}")
                     except json.JSONDecodeError:
                         args = {}
-                    GLib.idle_add(self.note_tool, name, args)
+                    _log(f"call {name} {json.dumps(args, ensure_ascii=False)[:220]}")
+                    GLib.idle_add(self.note_tool, name, args, gen)
                     _t1 = time.time()
                     result = self.tools.execute(name, args)
                     _log(f"tool {name} {time.time() - _t1:.2f}s")
+                    if gen != self._gen:
+                        return
                     self.messages.append({
                         "role": "tool",
                         "tool_call_id": tc["id"],
                         "content": result["text"],
                     })
-                    GLib.idle_add(self.note_result, result["text"])
+                    GLib.idle_add(self.note_result, result["text"], gen)
                     if result.get("image"):
                         pending_images.append(result["image"])
                 # 所有 tool 消息必须紧跟上一条 assistant，图片只能之后补
@@ -502,13 +578,21 @@ class Archlot(Gtk.Application):
                         {"type": "image_url",
                          "image_url": {"url": "data:image/jpeg;base64," + b64}},
                     ]})
+            else:
+                GLib.idle_add(
+                    self.append_error,
+                    f"已达到 {max_rounds} 轮工具调用上限，任务可能没做完。"
+                    "可以让我继续，或把任务拆小一点。")
             self.trim_history()
         except llm.LLMError as exc:
-            GLib.idle_add(self.append_error, str(exc))
+            GLib.idle_add(self.append_error, str(exc), gen)
         except Exception as exc:  # noqa: BLE001
-            GLib.idle_add(self.append_error, f"{type(exc).__name__}：{exc}")
+            GLib.idle_add(self.append_error, f"{type(exc).__name__}：{exc}", gen)
         finally:
-            GLib.idle_add(self.finish)
+            if gen == self._gen:
+                if self._cancel.is_set():
+                    GLib.idle_add(self.append_notice, "已停止。", gen)
+                GLib.idle_add(self.finish)
 
     def strip_old_images(self):
         """只保留最新一张截图，旧图换成占位文本，避免上下文越来越大。"""
@@ -528,6 +612,10 @@ class Archlot(Gtk.Application):
 
     def finish(self):
         self.busy = False
+        if getattr(self, "_status_timer", None):
+            GLib.source_remove(self._status_timer)
+            self._status_timer = None
+        self.status.set_visible(False)
         self.spinner.stop()
         self.spinner.set_visible(False)
         self.hint.set_visible(True)
@@ -547,6 +635,9 @@ class Archlot(Gtk.Application):
         return self._confirm_ok
 
     def _show_confirm(self, title, detail):
+        self._awaiting_confirm = True
+        self.status.set_text("等待确认")
+        self.status.set_visible(True)
         self.confirm_label.set_text(f"{title}\n{detail[:300]}")
         self.confirm_revealer.set_reveal_child(True)
         self.set_expanded(True)
@@ -554,6 +645,9 @@ class Archlot(Gtk.Application):
         return False
 
     def _answer_confirm(self, ok):
+        self._awaiting_confirm = False
+        if self.busy:
+            self.status.set_text("思考中")
         self.confirm_revealer.set_reveal_child(False)
         self._confirm_ok = ok
         if self._confirm_event is not None:
@@ -561,10 +655,71 @@ class Archlot(Gtk.Application):
         GLib.timeout_add(140, self.relocate)
 
     def hide_for_shot(self):
-        """截图时保留窗口（隐藏会抢走焦点、关掉菜单），不做事。"""
+        """截图时把自己的窗口收起来，避免挡住目标或把自己的文字拍进画面。"""
+        self._shot_focus = None
+        try:
+            for w in list_windows():
+                if w.get("is_focused") and w.get("app_id") != APP_ID:
+                    self._shot_focus = w["id"]
+                    break
+        except Exception:  # noqa: BLE001
+            pass
+        if self.win is not None and self.win.get_visible():
+            GLib.idle_add(self._set_visible, False)
+            time.sleep(0.08)
 
     def show_after_shot(self):
-        pass
+        if self.win is not None and not self.win.get_visible() and self.busy:
+            GLib.idle_add(self._set_visible, True)
+            time.sleep(0.10)
+            if getattr(self, "_shot_focus", None):
+                run(["niri", "msg", "action", "focus-window",
+                     "--id", str(self._shot_focus)], timeout=3)
+
+    def _set_visible(self, value):
+        if self.win is not None:
+            self.win.set_visible(value)
+            if value:
+                self.win.present()
+        return False
+
+    def park_panel(self, x, y):
+        """点击点被自己的面板挡住时，把面板临时挪到角落，点完再挪回来。"""
+        if self.win is None or not self.win.get_visible():
+            return False
+        me = next((w for w in list_windows()
+                   if w.get("app_id") == APP_ID), None)
+        if not me:
+            return False
+        layout = me.get("layout") or {}
+        pos = layout.get("tile_pos_in_workspace_view") or [0, 0]
+        size = layout.get("window_size") or [WIDTH, IDLE_HEIGHT]
+        x0, y0 = pos
+        w, h = size
+        if not (x0 <= x <= x0 + w and y0 <= y <= y0 + h):
+            return False
+        sw, sh = screen_size()
+        target_x = (sw - w - 16) if x < sw / 2 else 16
+        target_y = 16
+        dx = round(target_x - x0)
+        dy = round(target_y - y0)
+        run(["niri", "msg", "action", "move-floating-window",
+             "--id", str(me["id"]), f"--x={dx:+d}", f"--y={dy:+d}"], timeout=4)
+        self._park_delta = (dx, dy)
+        time.sleep(0.06)
+        return True
+
+    def unpark_panel(self):
+        delta = getattr(self, "_park_delta", None)
+        if not delta:
+            return
+        me = next((w for w in list_windows()
+                   if w.get("app_id") == APP_ID), None)
+        if me:
+            dx, dy = delta
+            run(["niri", "msg", "action", "move-floating-window",
+                 "--id", str(me["id"]), f"--x={-dx:+d}", f"--y={-dy:+d}"], timeout=4)
+        self._park_delta = None
 
 
 def main():
