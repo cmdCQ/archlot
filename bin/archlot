@@ -1,2 +1,4 @@
 #!/usr/bin/env bash
+# Archlot：GTK4 用 GL 渲染（Vulkan 在 resize 时 swapchain 会卡）
+export GSK_RENDERER=gl
 exec /usr/bin/python3 "$HOME/projects/archlot/archlot.py" "$@"

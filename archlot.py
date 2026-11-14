@@ -37,6 +37,9 @@ WIDTH = 900
 
 SYSTEM_PROMPT = """你是 Archlot，跑在用户 cqsomt 的 Arch Linux + niri 桌面上的私人 AI 助手。
 
+身份：你就是 Archlot。底层模型是 DeepSeek（deepseek-flash，由深度求索提供）。
+被问到模型身份时，只回答：我是 Archlot，底层是 DeepSeek 的 deepseek-flash 模型。不要展开猜测。
+
 回答用中文，直接、简短，不要客套话和废话。
 输出纯文本：不要用 Markdown 标记（**、#、```、表格竖线），需要强调就用普通句子。
 
@@ -237,7 +240,21 @@ class Archlot(Gtk.Application):
         GLib.timeout_add(150, self.relocate)
 
     def relocate(self):
-        """把浮窗钉在屏幕底部居中。"""
+        """把浮窗钉在屏幕底部居中（后台线程，避免卡住界面）。"""
+        if not getattr(self, "_reloc_lock", None):
+            self._reloc_lock = threading.Lock()
+        if not self._reloc_lock.acquire(blocking=False):
+            return False
+        threading.Thread(target=self._relocate_worker, daemon=True).start()
+        return False
+
+    def _relocate_worker(self):
+        try:
+            self._relocate_once()
+        finally:
+            self._reloc_lock.release()
+
+    def _relocate_once(self):
         me = None
         for w in list_windows():
             if w.get("app_id") == APP_ID:
@@ -288,8 +305,9 @@ class Archlot(Gtk.Application):
         self.messages.append({"role": "user", "content": text})
         try:
             for _ in range(int(self.cfg.get("max_rounds", 8))):
+                payload = [{"role": "system", "content": SYSTEM_PROMPT}] + self.messages
                 msg, _finish = llm.stream_chat(
-                    self.cfg, self.messages, TOOLS,
+                    self.cfg, payload, TOOLS,
                     on_text=lambda t: GLib.idle_add(self.append_assistant, t),
                 )
                 self.messages.append(msg)
