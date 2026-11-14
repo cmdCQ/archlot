@@ -16,7 +16,7 @@ scrolledwindow > viewport {
 
 .empty-state { margin-top: 12px; margin-bottom: 4px; }
 .empty-mark { color: alpha(#d1c2ff, 0.74); font-size: 7.5pt; font-weight: 700; letter-spacing: 2px; }
-.empty-title { color: alpha(#f6f3fa, 0.94); font-size: 13pt; font-weight: 500; }
+.empty-title { color: alpha(#f6f3fa, 0.94); font-size: 12pt; font-weight: 500; }
 .empty-hint { color: alpha(#d9d3e5, 0.50); font-size: 8.5pt; }
 
 .user-bubble {
