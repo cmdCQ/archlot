@@ -31,7 +31,7 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 CONF_PATH = os.path.expanduser("~/.config/archlot/config.json")
 CSS_PATH = os.path.join(BASE, "style.css")
 
-IDLE_HEIGHT = 72
+IDLE_HEIGHT = 168
 OPEN_HEIGHT = 440
 BOTTOM_MARGIN = 48
 WIDTH = 820
@@ -154,6 +154,20 @@ class Archlot(Gtk.Application):
         self._stream_timer = 0
         self._tool_label = None
 
+        self.empty_state = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
+        self.empty_state.add_css_class("empty-state")
+        self.empty_state.set_valign(Gtk.Align.CENTER)
+        empty_mark = Gtk.Label(label="✦")
+        empty_mark.add_css_class("empty-mark")
+        empty_title = Gtk.Label(label="有什么需要处理？")
+        empty_title.add_css_class("empty-title")
+        empty_hint = Gtk.Label(label="执行命令、读写文件、搜索网页，或者直接问我")
+        empty_hint.add_css_class("empty-hint")
+        self.empty_state.append(empty_mark)
+        self.empty_state.append(empty_title)
+        self.empty_state.append(empty_hint)
+        self.msgbox.append(self.empty_state)
+
         # 确认条
         self.confirm_revealer = Gtk.Revealer()
         self.confirm_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_UP)
@@ -257,6 +271,7 @@ class Archlot(Gtk.Application):
     def append_user(self, text):
         self._end_stream()
         self._tool_label = None
+        self.empty_state.set_visible(False)
         bubble = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         bubble.add_css_class("user-bubble")
         bubble.set_halign(Gtk.Align.END)
@@ -491,6 +506,8 @@ class Archlot(Gtk.Application):
         self._end_stream()
         self._clear_messages()
         self._tool_label = None
+        self.msgbox.append(self.empty_state)
+        self.empty_state.set_visible(True)
         self.collapse()
 
     def collapse(self):
