@@ -31,10 +31,10 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 CONF_PATH = os.path.expanduser("~/.config/archlot/config.json")
 CSS_PATH = os.path.join(BASE, "style.css")
 
-IDLE_HEIGHT = 200
-OPEN_HEIGHT = 440
-BOTTOM_MARGIN = 48
-WIDTH = 820
+IDLE_HEIGHT = 66
+OPEN_HEIGHT = 560
+BOTTOM_MARGIN = 56
+WIDTH = 900
 
 SYSTEM_PROMPT = """你是 Archlot，跑在用户 cqsomt 的 Arch Linux + niri 桌面上的私人 AI 助手。
 
@@ -140,10 +140,10 @@ class Archlot(Gtk.Application):
         self.scroll = Gtk.ScrolledWindow()
         self.scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.scroll.set_vexpand(True)
-        self.scroll.set_visible(True)
+        self.scroll.set_visible(False)
         root.append(self.scroll)
 
-        self.msgbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        self.msgbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
         self.msgbox.add_css_class("messages")
         self.msgbox.set_valign(Gtk.Align.START)
         self.scroll.set_child(self.msgbox)
@@ -153,28 +153,6 @@ class Archlot(Gtk.Application):
         self._stream_pending = ""
         self._stream_timer = 0
         self._tool_label = None
-
-        self.empty_state = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
-        self.empty_state.add_css_class("empty-state")
-        self.empty_state.set_valign(Gtk.Align.CENTER)
-        empty_mark = Gtk.Label(label="ARCHLOT")
-        empty_mark.add_css_class("empty-mark")
-        empty_title = Gtk.Label(label="准备好了")
-        empty_title.add_css_class("empty-title")
-        empty_title.set_xalign(0.5)
-        empty_title.set_halign(Gtk.Align.CENTER)
-        empty_title.set_hexpand(True)
-        empty_title.set_size_request(260, -1)
-        empty_hint = Gtk.Label(label="输入任务，开始处理")
-        empty_hint.add_css_class("empty-hint")
-        empty_hint.set_xalign(0.5)
-        empty_hint.set_halign(Gtk.Align.CENTER)
-        empty_hint.set_hexpand(True)
-        empty_hint.set_size_request(260, -1)
-        self.empty_state.append(empty_mark)
-        self.empty_state.append(empty_title)
-        self.empty_state.append(empty_hint)
-        self.msgbox.append(self.empty_state)
 
         # 确认条
         self.confirm_revealer = Gtk.Revealer()
@@ -212,7 +190,7 @@ class Archlot(Gtk.Application):
         bar.set_margin_end(20)
         bar.set_margin_top(12)
         bar.set_margin_bottom(12)
-        arrow = Gtk.Label(label="✦")
+        arrow = Gtk.Label(label="›")
         arrow.add_css_class("arrow")
         self.entry = Gtk.Entry()
         self.entry.set_has_frame(False)
@@ -279,8 +257,6 @@ class Archlot(Gtk.Application):
     def append_user(self, text):
         self._end_stream()
         self._tool_label = None
-        self.empty_state.set_visible(False)
-        self.msgbox.set_valign(Gtk.Align.START)
         bubble = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         bubble.add_css_class("user-bubble")
         bubble.set_halign(Gtk.Align.END)
@@ -394,10 +370,9 @@ class Archlot(Gtk.Application):
     def show(self):
         _log("show")
         self.ensure_ui()
-        # 让 Niri 先播放开窗动画；定位只在动画结束后做一次校正。
-        # 唤起路径不执行同步 niri 命令，避免动画首帧被 shell 调用卡住。
         self.win.present()
         self.entry.grab_focus()
+        GLib.timeout_add(90, self.relocate)
 
     def hide(self):
         _log("hide")
@@ -456,6 +431,7 @@ class Archlot(Gtk.Application):
         self.scroll.set_visible(True)
         self.divider.set_visible(True)
         self.root.set_size_request(WIDTH, OPEN_HEIGHT)
+        GLib.timeout_add(30, self.relocate)
         return False
 
     def relocate(self):
@@ -515,15 +491,11 @@ class Archlot(Gtk.Application):
         self._end_stream()
         self._clear_messages()
         self._tool_label = None
-        self.msgbox.append(self.empty_state)
-        self.empty_state.set_visible(True)
-        self.msgbox.set_valign(Gtk.Align.CENTER)
         self.collapse()
 
     def collapse(self):
         self.divider.set_visible(False)
-        # 空闲态也保留欢迎内容；有对话时才收起消息区。
-        self.scroll.set_visible(self.empty_state.get_visible())
+        self.scroll.set_visible(False)
         self.root.set_size_request(WIDTH, IDLE_HEIGHT)
         GLib.timeout_add(20, self.relocate)
         return False
