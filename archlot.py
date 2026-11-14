@@ -389,7 +389,6 @@ class Archlot(Gtk.Application):
         # 唤起路径不执行同步 niri 命令，避免动画首帧被 shell 调用卡住。
         self.win.present()
         self.entry.grab_focus()
-        GLib.timeout_add(340, self.relocate)
 
     def hide(self):
         _log("hide")
@@ -448,7 +447,6 @@ class Archlot(Gtk.Application):
         self.scroll.set_visible(True)
         self.divider.set_visible(True)
         self.root.set_size_request(WIDTH, OPEN_HEIGHT)
-        GLib.timeout_add(30, self.relocate)
         return False
 
     def relocate(self):
