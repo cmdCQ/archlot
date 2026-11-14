@@ -385,9 +385,12 @@ class Archlot(Gtk.Application):
     def show(self):
         _log("show")
         self.ensure_ui()
+        # 先把隐藏窗口放到最终位置，再交给 Niri 播放开窗动画。
+        # 避免“开窗淡入”和“移动窗口”同时发生造成卡顿。
+        self._relocate_once()
         self.win.present()
         self.entry.grab_focus()
-        GLib.timeout_add(90, self.relocate)
+        GLib.timeout_add(360, self.relocate)
 
     def hide(self):
         _log("hide")
