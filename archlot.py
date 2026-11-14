@@ -63,7 +63,6 @@ def load_config():
         "api_base": "https://api.deepseek.com",
         "model": "deepseek-flash",
         "max_tokens": 4096,
-        "max_rounds": 80,
         "workspace": os.path.expanduser("~/archlot-workspace"),
     }
     try:
@@ -526,8 +525,7 @@ class Archlot(Gtk.Application):
         gen = self._gen
         self.messages.append({"role": "user", "content": text})
         try:
-            max_rounds = int(self.cfg.get("max_rounds", 80))
-            for _ in range(max_rounds):
+            while True:
                 if self._cancel.is_set() or gen != self._gen:
                     break
                 payload = [{"role": "system",
@@ -587,11 +585,6 @@ class Archlot(Gtk.Application):
                         {"type": "image_url",
                          "image_url": {"url": "data:image/jpeg;base64," + b64}},
                     ]})
-            else:
-                GLib.idle_add(
-                    self.append_error,
-                    f"已达到 {max_rounds} 轮工具调用上限，任务可能没做完。"
-                    "可以让我继续，或把任务拆小一点。")
             self.trim_history()
         except llm.LLMError as exc:
             GLib.idle_add(self.append_error, str(exc), gen)
