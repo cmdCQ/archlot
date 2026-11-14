@@ -176,8 +176,11 @@ class VirtualMouse:
 # ---------------------------------------------------------------- 工具实现
 
 class Tools:
-    def __init__(self, ui):
+    def __init__(self, ui, workspace=None):
         self.ui = ui            # 提供 confirm() / flash_screenshot()
+        self.workspace = os.path.abspath(os.path.expanduser(
+            workspace or "~/archlot-workspace"))
+        os.makedirs(self.workspace, exist_ok=True)
         self._mouse = None
         self.last_shot = None   # (width, height) 图片像素
         self._lock = threading.Lock()
@@ -188,6 +191,26 @@ class Tools:
         if self._mouse is None:
             self._mouse = VirtualMouse()
         return self._mouse
+
+    def _resolve(self, path):
+        path = os.path.expanduser(str(path or ""))
+        if not os.path.isabs(path):
+            path = os.path.join(self.workspace, path)
+        return os.path.abspath(path)
+
+    def _outside_write(self, cmd):
+        """命令里出现工作区外的绝对路径、且命令看起来会改文件时，返回那个路径。"""
+        if not MUTATE_RE.search(cmd):
+            return None
+        for m in re.finditer(r"""(?<![\w-])((?:~|/)[^\s;|&<>"']*)""", cmd):
+            raw = m.group(1)
+            path = os.path.abspath(os.path.expanduser(raw))
+            if path == self.workspace or path.startswith(self.workspace + os.sep):
+                continue
+            if path.startswith(("/tmp/", "/dev/", "/proc/", "/sys/", "/run/")):
+                continue
+            return path
+        return None
 
     def _to_screen(self, x, y):
         sw, sh = screen_size()
@@ -213,14 +236,19 @@ class Tools:
             return {"text": "命令为空"}
         if DANGER_RE.search(cmd) and not self.ui.confirm("要执行这条命令吗？", cmd):
             return {"text": "用户拒绝了这条命令。"}
-        rc, out, err = run(["bash", "-lc", cmd], timeout=int(a.get("timeout", 60)))
+        outside = self._outside_write(cmd)
+        if outside and not self.ui.confirm(
+                f"这条命令会改动工作区外的 {outside}，确定吗？", cmd):
+            return {"text": "用户拒绝了工作区外的改动。"}
+        rc, out, err = run(["bash", "-lc", cmd], cwd=self.workspace,
+                           timeout=int(a.get("timeout", 60)))
         body = out.strip()
         if err.strip():
             body += ("\n[stderr]\n" + err.strip())
         return {"text": f"exit={rc}\n{clip(body)}"}
 
     def _t_read_file(self, a):
-        path = os.path.expanduser(str(a.get("path", "")))
+        path = self._resolve(a.get("path", ""))
         limit = int(a.get("limit", 20000))
         if not os.path.isfile(path):
             return {"text": f"不是文件：{path}"}
@@ -228,10 +256,11 @@ class Tools:
             return {"text": clip(f.read(limit + 1), limit)}
 
     def _t_write_file(self, a):
-        path = os.path.expanduser(str(a.get("path", "")))
-        path = os.path.abspath(path)
-        if not path.startswith(HOME + os.sep):
-            return {"text": "只允许写家目录内的文件。"}
+        path = self._resolve(a.get("path", ""))
+        if not (path == self.workspace or
+                path.startswith(self.workspace + os.sep)):
+            if not self.ui.confirm("要写工作区外的文件吗？", path):
+                return {"text": "用户拒绝了这次写入。"}
         content = str(a.get("content", ""))
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w") as f:
@@ -239,7 +268,7 @@ class Tools:
         return {"text": f"已写入 {path}（{len(content)} 字符）"}
 
     def _t_list_dir(self, a):
-        path = os.path.expanduser(str(a.get("path", HOME)))
+        path = self._resolve(a.get("path", self.workspace))
         try:
             entries = sorted(os.listdir(path))[:200]
         except OSError as exc:
@@ -354,6 +383,12 @@ class Tools:
         return {"text": f"已聚焦 {target.get('app_id')}：{target.get('title')}"}
 
 
+MUTATE_RE = re.compile(
+    r"(^|[;&|]\s*)(rm|mv|cp|touch|mkdir|rmdir|chmod|chown|ln|truncate|"
+    r"tee|install|dd|sed\s+-i)\b|>>?",
+    re.IGNORECASE,
+)
+
 DANGER_RE = re.compile(
     r"(rm\s+-[a-zA-Z]*[rf]|sudo\b|mkfs|dd\s+if=|dd\s+of=|pacman\s+-R|yay\s+-R|"
     r"paru\s+-R|systemctl\s+(stop|disable|mask)|shutdown|reboot|poweroff|"
@@ -367,7 +402,7 @@ DANGER_RE = re.compile(
 TOOLS = [
     {"type": "function", "function": {
         "name": "run_shell",
-        "description": "在用户家目录执行 bash 命令并返回输出。危险命令会先让用户确认。",
+        "description": "在工作区执行 bash 命令并返回输出。危险命令或工作区外写操作会先让用户确认。",
         "parameters": {"type": "object", "properties": {
             "command": {"type": "string", "description": "要执行的命令"},
             "timeout": {"type": "integer", "description": "超时秒数，默认 60"},
@@ -383,7 +418,7 @@ TOOLS = [
     }},
     {"type": "function", "function": {
         "name": "write_file",
-        "description": "写入文件（仅限家目录）。会覆盖原内容。",
+        "description": "写入文件（默认工作区；写工作区外会请求确认）。会覆盖原内容。",
         "parameters": {"type": "object", "properties": {
             "path": {"type": "string"},
             "content": {"type": "string"},
@@ -393,7 +428,7 @@ TOOLS = [
         "name": "list_dir",
         "description": "列出目录内容。",
         "parameters": {"type": "object", "properties": {
-            "path": {"type": "string", "description": "默认家目录"},
+            "path": {"type": "string", "description": "默认工作区"},
         }},
     }},
     {"type": "function", "function": {

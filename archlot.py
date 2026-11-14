@@ -45,6 +45,10 @@ SYSTEM_PROMPT = """你是 Archlot，跑在用户 cqsomt 的 Arch Linux + niri �
 输出纯文本：不要用 Markdown 标记（**、#、```、表格竖线），需要强调就用普通句子。
 
 你有真正能干活的工具：执行 shell、读写文件、看屏幕、动鼠标、敲键盘、切窗口。
+
+工作区：{workspace}
+- 所有新建文件、脚本、下载和临时产物都放进工作区，不要写到家目录根下或别处。
+- 工作区外默认只读；确需改动工作区外的文件时先说明原因，程序会弹确认。
 - 只在真的需要看屏幕或找不着目标位置时才 screenshot；单纯打字、按键后不必截图。
 - 坐标用最近一张截图的像素坐标。点按钮、输入框这类目标时，点它的中心，不要点边框或边缘（差几像素就会点空）。
 - 填表单时先把所有字段填完，最后截一张图确认内容对不对；发现点空了就重新点输入框中心再输入。
@@ -60,6 +64,7 @@ def load_config():
         "model": "deepseek-flash",
         "max_tokens": 4096,
         "max_rounds": 24,
+        "workspace": os.path.expanduser("~/archlot-workspace"),
     }
     try:
         with open(CONF_PATH) as f:
@@ -81,7 +86,10 @@ class Archlot(Gtk.Application):
         self.win = None
         self.messages = []
         self.busy = False
-        self.tools = Tools(self)
+        workspace = self.cfg.get("workspace") or os.path.expanduser("~/archlot-workspace")
+        os.makedirs(workspace, exist_ok=True)
+        self.workspace = os.path.abspath(os.path.expanduser(workspace))
+        self.tools = Tools(self, self.workspace)
         self._confirm_event = None
         self._confirm_ok = False
 
@@ -522,7 +530,8 @@ class Archlot(Gtk.Application):
             for _ in range(max_rounds):
                 if self._cancel.is_set() or gen != self._gen:
                     break
-                payload = [{"role": "system", "content": SYSTEM_PROMPT}] + self.messages
+                payload = [{"role": "system",
+                            "content": SYSTEM_PROMPT.format(workspace=self.workspace)}] + self.messages
                 _t0 = time.time()
                 msg, _finish = llm.stream_chat(
                     self.cfg, payload, TOOLS,
