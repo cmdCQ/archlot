@@ -14,6 +14,113 @@ import time
 HOME = os.path.expanduser("~")
 SHOT_PATH = os.path.join(tempfile.gettempdir(), "archlot-shot.jpg")
 
+
+# ---------------------------------------------------------------- uinput 键盘
+UI_DEV_CREATE = 0x5501
+UI_DEV_DESTROY = 0x5502
+UI_SET_EVBIT = 0x40045564
+UI_SET_KEYBIT = 0x40045565
+_KEYS = {
+    "a": 30, "b": 48, "c": 46, "d": 32, "e": 18, "f": 33, "g": 34, "h": 35,
+    "i": 23, "j": 36, "k": 37, "l": 38, "m": 50, "n": 49, "o": 24, "p": 25,
+    "q": 16, "r": 19, "s": 31, "t": 20, "u": 22, "v": 47, "w": 17, "x": 45,
+    "y": 21, "z": 44,
+    "1": 2, "2": 3, "3": 4, "4": 5, "5": 6, "6": 7, "7": 8, "8": 9, "9": 10,
+    "0": 11, "-": 12, "=": 13, "[": 26, "]": 27, ";": 39, "'": 40, "`": 41,
+    "\\": 43, ",": 51, ".": 52, "/": 53, " ": 57,
+}
+_SHIFTED = {
+    "!": "1", "@": "2", "#": "3", "$": "4", "%": "5", "^": "6", "&": "7",
+    "*": "8", "(": "9", ")": "0", "_": "-", "+": "=", "{": "[", "}": "]",
+    ":": ";", '"': "'", "~": "`", "|": "\\", "<": ",", ">": ".", "?": "/",
+}
+
+
+class UinputKeyboard:
+    """绕过虚拟键盘协议，直接向 /dev/uinput 发真实键码。
+
+    noVNC / KVM 网页控制台不认 wtype 的 keymap，会把字母吃掉或变成数字，
+    这种目标必须用真实键码输入。
+    """
+
+    def __init__(self):
+        self.fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
+        fcntl.ioctl(self.fd, UI_SET_EVBIT, 1)          # EV_KEY
+        for code in range(1, 128):
+            fcntl.ioctl(self.fd, UI_SET_KEYBIT, code)
+        buf = bytearray(1116)
+        name = b"archlot-virtual-kbd"
+        buf[0:len(name)] = name
+        struct.pack_into("HHHH", buf, 80, 3, 0x1234, 0x5678, 1)
+        struct.pack_into("I", buf, 88, 0)
+        os.write(self.fd, buf)
+        fcntl.ioctl(self.fd, UI_DEV_CREATE)
+        # 合成器注册新设备需要一点时间，太早发键会被吞掉。
+        time.sleep(0.45)
+        self._emit(42, 1)
+        self._emit(42, 0)
+        time.sleep(0.08)
+
+    def _emit(self, code, value):
+        now = time.time()
+        sec = int(now)
+        usec = int((now - sec) * 1_000_000)
+        os.write(self.fd, struct.pack("llHHi", sec, usec, 1, code, value))
+        os.write(self.fd, struct.pack("llHHi", sec, usec, 0, 0, 0))
+
+    def _tap(self, code, shift=False, delay=0.012):
+        if shift:
+            self._emit(42, 1)
+        self._emit(code, 1)
+        time.sleep(delay)
+        self._emit(code, 0)
+        if shift:
+            self._emit(42, 0)
+
+    def type(self, text, delay=0.015):
+        unsupported = []
+        for ch in text:
+            if ch == "\n":
+                self._tap(28)
+            elif ch == "\t":
+                self._tap(15)
+            elif ch == "\b":
+                self._tap(14)
+            elif ch in _KEYS:
+                self._tap(_KEYS[ch])
+            elif ch.isupper() and ch.lower() in _KEYS:
+                self._tap(_KEYS[ch.lower()], shift=True)
+            elif ch in _SHIFTED:
+                self._tap(_KEYS[_SHIFTED[ch]], shift=True)
+            else:
+                unsupported.append(ch)
+        return unsupported
+
+    def close(self):
+        try:
+            fcntl.ioctl(self.fd, UI_DEV_DESTROY)
+        except OSError:
+            pass
+        try:
+            os.close(self.fd)
+        except OSError:
+            pass
+
+
+def type_with_uinput(text):
+    """返回 (成功?, 不支持字符列表)。"""
+    try:
+        kb = UinputKeyboard()
+    except OSError as exc:
+        return False, [f"无法打开 /dev/uinput：{exc}"]
+    try:
+        missing = kb.type(text)
+        time.sleep(0.05)
+        return True, missing
+    finally:
+        kb.close()
+
+
 # ---------------------------------------------------------------- 基础工具
 
 def run(cmd, timeout=60, cwd=None, input_text=None):
@@ -325,6 +432,15 @@ class Tools:
         text = str(a.get("text", ""))
         if not text:
             return {"text": "文本为空"}
+        method = str(a.get("method", "auto"))
+        if method == "keys":
+            ok, missing = type_with_uinput(text)
+            if not ok:
+                return {"text": f"真实键码输入失败：{missing[0]}"}
+            note = f"（{len(missing)} 个字符不支持：{''.join(missing[:8])}）" if missing else ""
+            return {"text": f"已用真实键码输入 {len(text) - len(missing)} 个字符{note}"}
+        if method == "paste":
+            return self._paste_text(text)
         if text.isascii():
             rc, _, err = run(["wtype", "--", text], timeout=30)
             if rc != 0:
@@ -344,12 +460,69 @@ class Tools:
             self._press("ctrl+v")
         return {"text": f"已输入 {len(text)} 个字符"}
 
+    def _paste_text(self, text):
+        try:
+            subprocess.run(
+                ["wl-copy"], input=text.encode(),
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                timeout=5, check=False,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            return {"text": f"写剪贴板失败：{exc}"}
+        time.sleep(0.15)
+        self._press("ctrl+v")
+        return {"text": f"已通过剪贴板粘贴 {len(text)} 个字符"}
+
     def _t_press_key(self, a):
         keys = str(a.get("keys", "")).strip()
         if not keys:
             return {"text": "按键为空"}
+        if str(a.get("method", "auto")) == "keys":
+            return self._press_keys_uinput(keys)
         self._press(keys)
         return {"text": f"已按键 {keys}"}
+
+    def _press_keys_uinput(self, combo):
+        parts = [p for p in combo.split("+") if p]
+        mods = {"ctrl": 29, "control": 29, "alt": 56, "shift": 42, "super": 125,
+                "meta": 125}
+        named = {"backspace": 14, "return": 28, "enter": 28, "escape": 1,
+                 "tab": 15, "space": 57, "delete": 111, "home": 102, "end": 107,
+                 "up": 103, "down": 108, "left": 105, "right": 106,
+                 "pageup": 104, "pagedown": 109, "insert": 110}
+        held = []
+        main = None
+        for part in parts:
+            low = part.lower()
+            if low in mods:
+                held.append(mods[low])
+            elif low in named:
+                main = named[low]
+            elif low in _KEYS:
+                main = _KEYS[low]
+            elif len(low) == 1 and low in _SHIFTED:
+                main = _KEYS[_SHIFTED[low]]
+                held.append(42)
+            elif low.startswith("f") and low[1:].isdigit() and 1 <= int(low[1:]) <= 12:
+                main = 58 + int(low[1:]) - 1
+            else:
+                return {"text": f"不认识的按键：{part}"}
+        if main is None:
+            return {"text": "缺少主键"}
+        try:
+            kb = UinputKeyboard()
+        except OSError as exc:
+            return {"text": f"无法打开 /dev/uinput：{exc}"}
+        try:
+            for code in held:
+                kb._emit(code, 1)
+            kb._tap(main)
+            for code in reversed(held):
+                kb._emit(code, 0)
+            time.sleep(0.05)
+        finally:
+            kb.close()
+        return {"text": f"已用真实键码按下 {combo}"}
 
     def _press(self, combo):
         parts = [p for p in re.split(r"\+|\s+", combo) if p]
@@ -470,16 +643,18 @@ TOOLS = [
     }},
     {"type": "function", "function": {
         "name": "type_text",
-        "description": "向当前焦点窗口输入文字（中文自动走剪贴板粘贴）。",
+        "description": "向当前焦点窗口输入文字。method=auto 默认（英文用 wtype，中文走剪贴板）；method=keys 用真实键码（noVNC/KVM 网页控制台、游戏等收不到文字时用）；method=paste 强制剪贴板粘贴。",
         "parameters": {"type": "object", "properties": {
             "text": {"type": "string"},
+            "method": {"type": "string", "enum": ["auto", "keys", "paste"]},
         }, "required": ["text"]},
     }},
     {"type": "function", "function": {
         "name": "press_key",
-        "description": "按组合键，例如 ctrl+l、alt+Tab、Return、Escape。",
+        "description": "按组合键，例如 ctrl+l、alt+Tab、Return、Escape。method=keys 用真实键码（noVNC/KVM 控制台等收不到按键时用）。",
         "parameters": {"type": "object", "properties": {
             "keys": {"type": "string"},
+            "method": {"type": "string", "enum": ["auto", "keys"]},
         }, "required": ["keys"]},
     }},
     {"type": "function", "function": {
