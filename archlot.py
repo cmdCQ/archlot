@@ -31,10 +31,10 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 CONF_PATH = os.path.expanduser("~/.config/archlot/config.json")
 CSS_PATH = os.path.join(BASE, "style.css")
 
-IDLE_HEIGHT = 66
-OPEN_HEIGHT = 560
-BOTTOM_MARGIN = 56
-WIDTH = 900
+IDLE_HEIGHT = 78
+OPEN_HEIGHT = 540
+BOTTOM_MARGIN = 48
+WIDTH = 820
 
 SYSTEM_PROMPT = """你是 Archlot，跑在用户 cqsomt 的 Arch Linux + niri 桌面上的私人 AI 助手。
 
@@ -137,6 +137,27 @@ class Archlot(Gtk.Application):
         win.set_child(root)
         self.root = root
 
+        # 轻量的标题栏，让它更像桌面原生助手，而不是一块聊天网页。
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        header.add_css_class("header")
+        header.set_margin_start(18)
+        header.set_margin_end(18)
+        header.set_margin_top(10)
+        header.set_margin_bottom(2)
+        mark = Gtk.Label(label="✦")
+        mark.add_css_class("brand-mark")
+        brand = Gtk.Label(label="ARCHLOT")
+        brand.add_css_class("brand")
+        brand.set_xalign(0)
+        meta = Gtk.Label(label="AI 助手  ·  本地工作区")
+        meta.add_css_class("header-meta")
+        meta.set_hexpand(True)
+        meta.set_xalign(1)
+        header.append(mark)
+        header.append(brand)
+        header.append(meta)
+        root.append(header)
+
         self.scroll = Gtk.ScrolledWindow()
         self.scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.scroll.set_vexpand(True)
@@ -190,7 +211,7 @@ class Archlot(Gtk.Application):
         bar.set_margin_end(20)
         bar.set_margin_top(12)
         bar.set_margin_bottom(12)
-        arrow = Gtk.Label(label="›")
+        arrow = Gtk.Label(label="⌁")
         arrow.add_css_class("arrow")
         self.entry = Gtk.Entry()
         self.entry.set_has_frame(False)
