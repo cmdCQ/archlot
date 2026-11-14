@@ -237,7 +237,7 @@ class Archlot(Gtk.Application):
         self.scroll.set_visible(expanded)
         # GTK4 里窗口已显示后 set_default_size 不生效，用子控件最小尺寸驱动
         self.root.set_size_request(WIDTH, OPEN_HEIGHT if expanded else IDLE_HEIGHT)
-        GLib.timeout_add(150, self.relocate)
+        GLib.timeout_add(20, self.relocate)
 
     def relocate(self):
         """把浮窗钉在屏幕底部居中（后台线程，避免卡住界面）。"""
@@ -283,7 +283,9 @@ class Archlot(Gtk.Application):
     def clear(self):
         self.messages = []
         self.text.get_buffer().set_text("")
+        self.win.set_default_size(WIDTH, IDLE_HEIGHT)
         self.set_expanded(False)
+        self.root.queue_resize()
 
     # ------------------------------------------------------------ 对话
 
