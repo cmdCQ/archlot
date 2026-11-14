@@ -3,7 +3,7 @@ window.archlot-window {
 }
 
 .root {
-    background-color: alpha(#141218, 0.45);
+    background-color: alpha(#141218, 0.85);
     border-radius: 18px;
     border: 1px solid alpha(#d0bcff, 0.16);
 }
