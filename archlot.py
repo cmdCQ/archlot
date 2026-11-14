@@ -12,7 +12,8 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
-from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
+gi.require_version("Pango", "1.0")
+from gi.repository import Gdk, Gio, GLib, Gtk, Pango  # noqa: E402
 
 import llm  # noqa: E402
 from tools import TOOLS, Tools, list_windows, niri_json, run, screen_size  # noqa: E402
@@ -133,16 +134,14 @@ class Archlot(Gtk.Application):
         self.scroll.set_visible(False)
         root.append(self.scroll)
 
-        self.text = Gtk.TextView()
-        self.text.set_editable(False)
-        self.text.set_cursor_visible(False)
-        self.text.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
-        self.text.set_top_margin(14)
-        self.text.set_bottom_margin(8)
-        self.text.set_left_margin(20)
-        self.text.set_right_margin(20)
-        self.scroll.set_child(self.text)
-        self._make_tags()
+        self.msgbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        self.msgbox.add_css_class("messages")
+        self.msgbox.set_valign(Gtk.Align.START)
+        self.scroll.set_child(self.msgbox)
+        self._stream_label = None
+        self._stream_pending = ""
+        self._stream_timer = 0
+        self._tool_label = None
 
         # 确认条
         self.confirm_revealer = Gtk.Revealer()
@@ -169,7 +168,13 @@ class Archlot(Gtk.Application):
         root.append(self.confirm_revealer)
 
         # 输入条
+        self.divider = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        self.divider.add_css_class("divider")
+        self.divider.set_visible(False)
+        root.append(self.divider)
+
         bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        bar.add_css_class("input-bar")
         bar.set_margin_start(20)
         bar.set_margin_end(20)
         bar.set_margin_top(12)
@@ -183,8 +188,11 @@ class Archlot(Gtk.Application):
         self.entry.connect("activate", self.on_send)
         self.spinner = Gtk.Spinner()
         self.spinner.set_visible(False)
+        self.hint = Gtk.Label(label="↵")
+        self.hint.add_css_class("hint")
         bar.append(arrow)
         bar.append(self.entry)
+        bar.append(self.hint)
         bar.append(self.spinner)
         root.append(bar)
 
@@ -192,12 +200,122 @@ class Archlot(Gtk.Application):
         keys.connect("key-pressed", self.on_key)
         win.add_controller(keys)
 
-    def _make_tags(self):
-        buf = self.text.get_buffer()
-        buf.create_tag("user", foreground="#d0bcff", weight=700)
-        buf.create_tag("assistant", foreground="#e8e2ec")
-        buf.create_tag("tool", foreground="#8e8896", size_points=9)
-        buf.create_tag("error", foreground="#f2b8b5")
+    # ------------------------------------------------------------ 文本渲染
+
+    def _scroll_bottom(self):
+        adj = self.scroll.get_vadjustment()
+        if adj is not None:
+            adj.set_value(adj.get_upper())
+        return False
+
+    def _clear_messages(self):
+        child = self.msgbox.get_first_child()
+        while child is not None:
+            self.msgbox.remove(child)
+            child = self.msgbox.get_first_child()
+
+    def _wrap_label(self, text="", css_class=None):
+        label = Gtk.Label(label=text)
+        label.set_wrap(True)
+        label.set_wrap_mode(Pango.WrapMode.WORD_CHAR)
+        label.set_xalign(0)
+        label.set_selectable(True)
+        if css_class:
+            label.add_css_class(css_class)
+        return label
+
+    def append_user(self, text):
+        self._end_stream()
+        self._tool_label = None
+        bubble = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        bubble.add_css_class("user-bubble")
+        bubble.set_halign(Gtk.Align.END)
+        label = self._wrap_label(text, "user-text")
+        label.set_max_width_chars(46)
+        bubble.append(label)
+        self.msgbox.append(bubble)
+        GLib.idle_add(self._scroll_bottom)
+
+    def append_assistant(self, text):
+        text = text.replace("`", "").replace("**", "")
+        if not text:
+            return False
+        if self._stream_label is None:
+            self._stream_label = self._new_assistant_block()
+        self._stream_pending += text
+        if not self._stream_timer:
+            self._stream_timer = GLib.timeout_add(40, self._flush_stream)
+        return False
+
+    def _new_assistant_block(self):
+        block = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
+        block.add_css_class("assistant-block")
+        block.set_halign(Gtk.Align.START)
+        name = Gtk.Label(label="ARCHLOT")
+        name.set_xalign(0)
+        name.add_css_class("assistant-name")
+        block.append(name)
+        label = self._wrap_label("", "assistant-text")
+        label.set_max_width_chars(46)
+        block.append(label)
+        self.msgbox.append(block)
+        return label
+
+    def _flush_stream(self):
+        self._stream_timer = 0
+        if self._stream_label is not None and self._stream_pending:
+            self._stream_label.set_label(
+                self._stream_label.get_label() + self._stream_pending)
+            self._stream_pending = ""
+            GLib.idle_add(self._scroll_bottom)
+        return False
+
+    def _end_stream(self):
+        if self._stream_timer:
+            GLib.source_remove(self._stream_timer)
+            self._stream_timer = 0
+        if self._stream_pending and self._stream_label is not None:
+            self._stream_label.set_label(
+                self._stream_label.get_label() + self._stream_pending)
+            self._stream_pending = ""
+        self._stream_label = None
+
+    def note_tool(self, name, args):
+        self._end_stream()
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        row.add_css_class("tool-row")
+        icon = Gtk.Label(label="⚙")
+        icon.add_css_class("tool-icon")
+        text = Gtk.Label(label=name)
+        text.add_css_class("tool-text")
+        text.set_ellipsize(Pango.EllipsizeMode.END)
+        text.set_hexpand(True)
+        text.set_xalign(0)
+        row.append(icon)
+        row.append(text)
+        self.msgbox.append(row)
+        self._tool_label = text
+        self._scroll_bottom()
+        return False
+
+    def note_result(self, text):
+        if self._tool_label is None:
+            return False
+        first = (text or "").strip().splitlines()
+        line = first[0] if first else ""
+        if len(line) > 60:
+            line = line[:60] + "…"
+        if line:
+            self._tool_label.set_label(self._tool_label.get_label() + "  ·  " + line)
+        return False
+
+    def append_error(self, text):
+        self._end_stream()
+        self._tool_label = None
+        label = self._wrap_label(f"⚠ {text}", "error-text")
+        self.msgbox.append(label)
+        GLib.idle_add(self._scroll_bottom)
+        return False
 
     # ------------------------------------------------------------ 显示/隐藏
 
@@ -239,9 +357,7 @@ class Archlot(Gtk.Application):
             # 先移动到展开后的顶部位置，再拉长，避免先长出屏幕再跳
             threading.Thread(target=self._expand_worker, daemon=True).start()
         else:
-            self.scroll.set_visible(False)
-            self.root.set_size_request(WIDTH, IDLE_HEIGHT)
-            GLib.timeout_add(20, self.relocate)
+            self.collapse()
         return False
 
     def _expand_worker(self):
@@ -263,6 +379,7 @@ class Archlot(Gtk.Application):
 
     def _apply_expand(self):
         self.scroll.set_visible(True)
+        self.divider.set_visible(True)
         self.root.set_size_request(WIDTH, OPEN_HEIGHT)
         GLib.timeout_add(30, self.relocate)
         return False
@@ -310,10 +427,13 @@ class Archlot(Gtk.Application):
 
     def clear(self):
         self.messages = []
-        self.text.get_buffer().set_text("")
+        self._end_stream()
+        self._clear_messages()
+        self._tool_label = None
         self.collapse()
 
     def collapse(self):
+        self.divider.set_visible(False)
         self.scroll.set_visible(False)
         self.root.set_size_request(WIDTH, IDLE_HEIGHT)
         GLib.timeout_add(20, self.relocate)
@@ -329,6 +449,7 @@ class Archlot(Gtk.Application):
             return
         entry.set_text("")
         self.busy = True
+        self.hint.set_visible(False)
         self.spinner.set_visible(True)
         self.spinner.start()
         self.append_user(text)
@@ -409,55 +530,11 @@ class Archlot(Gtk.Application):
         self.busy = False
         self.spinner.stop()
         self.spinner.set_visible(False)
+        self.hint.set_visible(True)
         # 干完活把焦点收回输入框，方便接着说话
         if self.win is not None and self.win.get_visible():
             self.win.present()
             self.entry.grab_focus()
-        return False
-
-    # ------------------------------------------------------------ 文本渲染
-
-    def _insert(self, s, tag=None):
-        buf = self.text.get_buffer()
-        it = buf.get_end_iter()
-        if tag:
-            buf.insert_with_tags_by_name(it, s, tag)
-        else:
-            buf.insert(it, s)
-        GLib.idle_add(self._scroll_bottom)
-
-    def _scroll_bottom(self):
-        adj = self.scroll.get_vadjustment()
-        if adj is not None:
-            adj.set_value(adj.get_upper())
-        return False
-
-    def append_user(self, text):
-        self._insert("\n\n你\n", "user")
-        self._insert(text + "\n", "user")
-
-    def append_assistant(self, text):
-        text = text.replace("`", "").replace("**", "")
-        self._insert(text, "assistant")
-        return False
-
-    def note_tool(self, name, args):
-        brief = json.dumps(args, ensure_ascii=False)
-        if len(brief) > 90:
-            brief = brief[:90] + "…"
-        self._insert(f"\n  ⚙ {name} {brief}\n", "tool")
-        return False
-
-    def note_result(self, text):
-        first = (text or "").strip().splitlines()
-        line = first[0] if first else ""
-        if len(line) > 110:
-            line = line[:110] + "…"
-        self._insert(f"  ↳ {line}\n", "tool")
-        return False
-
-    def append_error(self, text):
-        self._insert(f"\n⚠ {text}\n", "error")
         return False
 
     # ------------------------------------------------------------ 确认框 / 截图钩子

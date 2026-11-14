@@ -3,9 +3,10 @@ window.archlot-window {
 }
 
 .root {
-    background-color: alpha(#141218, 0.85);
-    border-radius: 18px;
-    border: 1px solid alpha(#d0bcff, 0.16);
+    background-color: alpha(#121016, 0.95);
+    border-radius: 20px;
+    border: 1px solid alpha(#d0bcff, 0.14);
+    box-shadow: inset 0 1px 0 alpha(#ffffff, 0.05);
 }
 
 scrolledwindow,
@@ -13,12 +14,67 @@ scrolledwindow > viewport {
     background-color: transparent;
 }
 
-textview,
-textview > text {
-    background-color: transparent;
-    color: #e8e2ec;
+.messages {
+    margin: 20px 22px 18px 22px;
+}
+
+.user-bubble {
+    background-color: alpha(#d0bcff, 0.13);
+    border: 1px solid alpha(#d0bcff, 0.14);
+    border-radius: 16px;
+    padding: 9px 14px;
+}
+
+.user-text {
+    color: #f3edff;
+    font-family: "Noto Sans CJK SC", "Noto Sans";
+    font-size: 10.5pt;
+}
+
+.assistant-text {
+    color: #e9e4ee;
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 11pt;
+}
+
+.assistant-name {
+    color: alpha(#d0bcff, 0.50);
+    font-size: 8pt;
+    font-weight: 700;
+}
+
+.tool-row {
+    margin-left: 6px;
+}
+
+.tool-icon {
+    color: alpha(#d0bcff, 0.55);
+    font-size: 9pt;
+}
+
+.tool-text {
+    color: #8b8494;
+    font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
+    font-size: 8.5pt;
+}
+
+.error-text {
+    background-color: alpha(#f2b8b5, 0.10);
+    border-radius: 12px;
+    padding: 8px 12px;
+    color: #f2b8b5;
+    font-family: "Noto Sans CJK SC", "Noto Sans";
+    font-size: 10pt;
+}
+
+.divider {
+    background-color: alpha(#d0bcff, 0.10);
+    min-height: 1px;
+    border: none;
+}
+
+.input-bar {
+    background: transparent;
 }
 
 entry {
@@ -28,12 +84,17 @@ entry {
     box-shadow: none;
     color: #f4f0f8;
     font-family: "Noto Sans CJK SC", "Noto Sans";
-    font-size: 12pt;
+    font-size: 11.5pt;
     caret-color: #d0bcff;
 }
 
 entry > text {
     background: transparent;
+    color: #f4f0f8;
+}
+
+entry > text > placeholder {
+    color: alpha(#cfc8d6, 0.40);
 }
 
 entry:focus,
@@ -48,14 +109,15 @@ entry:focus > text {
 
 .arrow {
     color: #d0bcff;
-    font-size: 18pt;
+    font-size: 15pt;
     font-weight: bold;
 }
 
 .confirm-bar {
-    background: alpha(#d0bcff, 0.08);
-    border-radius: 12px;
-    padding: 6px;
+    background: alpha(#d0bcff, 0.09);
+    border: 1px solid alpha(#d0bcff, 0.12);
+    border-radius: 14px;
+    padding: 8px 10px;
 }
 
 .confirm-text {
@@ -66,8 +128,8 @@ entry:focus > text {
 button.small {
     background: alpha(#d0bcff, 0.16);
     color: #d8c8ff;
-    border-radius: 8px;
-    padding: 5px 14px;
+    border-radius: 99px;
+    padding: 5px 16px;
     font-size: 9.5pt;
     box-shadow: none;
     border: none;
@@ -77,6 +139,28 @@ button.small:hover {
     background: alpha(#d0bcff, 0.28);
 }
 
+.hint {
+    color: alpha(#cfc8d6, 0.28);
+    font-size: 10pt;
+    margin-right: 2px;
+}
+
 spinner {
     color: #d0bcff;
+}
+
+scrollbar {
+    background: transparent;
+    border: none;
+}
+
+scrollbar slider {
+    background: alpha(#d0bcff, 0.20);
+    border-radius: 99px;
+    min-width: 4px;
+    min-height: 28px;
+}
+
+scrollbar slider:hover {
+    background: alpha(#d0bcff, 0.34);
 }
