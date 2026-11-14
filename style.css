@@ -1,0 +1,72 @@
+window.archlot-window {
+    background-color: transparent;
+}
+
+.root {
+    background-color: alpha(#141218, 0.90);
+    border-radius: 18px;
+    border: 1px solid alpha(#d0bcff, 0.14);
+}
+
+scrolledwindow,
+scrolledwindow > viewport {
+    background-color: transparent;
+}
+
+textview,
+textview > text {
+    background-color: transparent;
+    color: #e8e2ec;
+    font-family: "Noto Sans CJK SC", "Noto Sans";
+    font-size: 11pt;
+}
+
+entry {
+    background: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+    color: #f4f0f8;
+    font-family: "Noto Sans CJK SC", "Noto Sans";
+    font-size: 12pt;
+    caret-color: #d0bcff;
+}
+
+entry > text {
+    background: transparent;
+}
+
+.arrow {
+    color: #d0bcff;
+    font-size: 18pt;
+    font-weight: bold;
+}
+
+.confirm-bar {
+    background: alpha(#d0bcff, 0.08);
+    border-radius: 12px;
+    padding: 6px;
+}
+
+.confirm-text {
+    color: #cfc8d6;
+    font-size: 9.5pt;
+}
+
+button.small {
+    background: alpha(#d0bcff, 0.16);
+    color: #d8c8ff;
+    border-radius: 8px;
+    padding: 5px 14px;
+    font-size: 9.5pt;
+    box-shadow: none;
+    border: none;
+}
+
+button.small:hover {
+    background: alpha(#d0bcff, 0.28);
+}
+
+spinner {
+    color: #d0bcff;
+}
