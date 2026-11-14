@@ -44,9 +44,9 @@ SYSTEM_PROMPT = """你是 Archlot，跑在用户 cqsomt 的 Arch Linux + niri �
 输出纯文本：不要用 Markdown 标记（**、#、```、表格竖线），需要强调就用普通句子。
 
 你有真正能干活的工具：执行 shell、读写文件、看屏幕、动鼠标、敲键盘、切窗口。
-- 需要看屏幕时先 screenshot，之后所有坐标都用那张截图的像素坐标。
-- 操作图形界面时：先确认目标窗口（list_windows / focus_window），再一步步点击或输入，每步之间可以再截图确认。
-- 一次只做一小步，看到结果再继续，不要凭想象连续操作。
+- 只在真的需要看屏幕或找不着目标位置时才 screenshot；打字、按键后不要为了"确认"再截一张。
+- 坐标用最近一张截图的像素坐标。
+- 能安全合并的连续动作放在同一轮里一次做完（例如 focus_window + press_key + type_text 一起调用），减少来回；只有结果不确定时才停下来看。
 - 危险命令（删除、sudo、关机等）会由程序弹窗让用户确认，你不用反复口头询问。
 - 绝不编造工具结果。做不到就直说做不到。
 """
@@ -306,10 +306,12 @@ class Archlot(Gtk.Application):
         try:
             for _ in range(int(self.cfg.get("max_rounds", 8))):
                 payload = [{"role": "system", "content": SYSTEM_PROMPT}] + self.messages
+                _t0 = time.time()
                 msg, _finish = llm.stream_chat(
                     self.cfg, payload, TOOLS,
                     on_text=lambda t: GLib.idle_add(self.append_assistant, t),
                 )
+                _log(f"llm {time.time() - _t0:.2f}s")
                 self.messages.append(msg)
                 calls = msg.get("tool_calls")
                 if not calls:
@@ -322,7 +324,9 @@ class Archlot(Gtk.Application):
                     except json.JSONDecodeError:
                         args = {}
                     GLib.idle_add(self.note_tool, name, args)
+                    _t1 = time.time()
                     result = self.tools.execute(name, args)
+                    _log(f"tool {name} {time.time() - _t1:.2f}s")
                     self.messages.append({
                         "role": "tool",
                         "tool_call_id": tc["id"],
@@ -332,6 +336,8 @@ class Archlot(Gtk.Application):
                     if result.get("image"):
                         pending_images.append(result["image"])
                 # 所有 tool 消息必须紧跟上一条 assistant，图片只能之后补
+                if pending_images:
+                    self.strip_old_images()
                 for image_path in pending_images:
                     with open(image_path, "rb") as f:
                         b64 = base64.b64encode(f.read()).decode()
@@ -339,7 +345,7 @@ class Archlot(Gtk.Application):
                         {"type": "text",
                          "text": "（这是当前的屏幕截图，坐标以这张图的像素为准）"},
                         {"type": "image_url",
-                         "image_url": {"url": "data:image/png;base64," + b64}},
+                         "image_url": {"url": "data:image/jpeg;base64," + b64}},
                     ]})
             self.trim_history()
         except llm.LLMError as exc:
@@ -348,6 +354,14 @@ class Archlot(Gtk.Application):
             GLib.idle_add(self.append_error, f"{type(exc).__name__}：{exc}")
         finally:
             GLib.idle_add(self.finish)
+
+    def strip_old_images(self):
+        """只保留最新一张截图，旧图换成占位文本，避免上下文越来越大。"""
+        for m in self.messages:
+            c = m.get("content")
+            if isinstance(c, list):
+                kept = [p for p in c if p.get("type") != "image_url"]
+                m["content"] = kept if kept else "（之前的截图已省略）"
 
     def trim_history(self):
         if len(self.messages) <= 60:

@@ -23,6 +23,8 @@ def stream_chat(cfg, messages, tools=None, on_text=None, on_reason=None, cancel=
     if tools:
         body["tools"] = tools
         body["tool_choice"] = "auto"
+    if cfg.get("reasoning_effort"):
+        body["reasoning_effort"] = cfg["reasoning_effort"]
 
     req = urllib.request.Request(
         cfg["api_base"].rstrip("/") + "/chat/completions",

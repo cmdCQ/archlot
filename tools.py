@@ -12,7 +12,7 @@ import threading
 import time
 
 HOME = os.path.expanduser("~")
-SHOT_PATH = os.path.join(tempfile.gettempdir(), "archlot-shot.png")
+SHOT_PATH = os.path.join(tempfile.gettempdir(), "archlot-shot.jpg")
 
 # ---------------------------------------------------------------- 基础工具
 
@@ -52,12 +52,26 @@ def list_windows():
     return niri_json("windows") or []
 
 
-def png_size(path):
+def image_size(path):
+    """读取 PNG / JPEG 的宽高，只为标准库。"""
     with open(path, "rb") as f:
-        head = f.read(24)
-    if len(head) < 24 or head[:8] != b"\x89PNG\r\n\x1a\n":
-        return None
-    return struct.unpack(">II", head[16:24])
+        head = f.read(64)
+        if head[:8] == b"\x89PNG\r\n\x1a\n":
+            return struct.unpack(">II", head[16:24])
+        if head[:2] != b"\xff\xd8":
+            return None
+        f.seek(2)
+        while True:
+            marker = f.read(2)
+            if len(marker) < 2 or marker[0] != 0xFF:
+                return None
+            code = marker[1]
+            if code in (0xC0, 0xC1, 0xC2):
+                length = struct.unpack(">H", f.read(2))[0]
+                data = f.read(length - 2)
+                return struct.unpack(">HH", data[1:5])[::-1]  # h, w -> w, h
+            length = struct.unpack(">H", f.read(2))[0]
+            f.seek(length - 2, 1)
 
 
 def clip(text, n=6000):
@@ -122,7 +136,7 @@ class VirtualMouse:
             os.close(fd)
             raise
         self.fd = fd
-        time.sleep(0.3)
+        time.sleep(0.15)
 
     def _emit(self, etype, code, value):
         os.write(self.fd, struct.pack("llHHi", 0, 0, etype, code, value))
@@ -134,7 +148,7 @@ class VirtualMouse:
         self._emit(EV_ABS, ABS_X, ax)
         self._emit(EV_ABS, ABS_Y, ay)
         self._emit(EV_SYN, SYN_REPORT, 0)
-        time.sleep(0.08)
+        time.sleep(0.05)
 
     def click(self, x, y, button="left", double=False):
         self.move(x, y)
@@ -143,10 +157,10 @@ class VirtualMouse:
         for _ in range(count):
             self._emit(EV_KEY, code, 1)
             self._emit(EV_SYN, SYN_REPORT, 0)
-            time.sleep(0.04)
+            time.sleep(0.02)
             self._emit(EV_KEY, code, 0)
             self._emit(EV_SYN, SYN_REPORT, 0)
-            time.sleep(0.08)
+            time.sleep(0.05)
 
     def scroll(self, dy, dx=0):
         for _ in range(abs(int(dy))):
@@ -237,15 +251,17 @@ class Tools:
         return {"text": "\n".join(lines) or "（空目录）"}
 
     def _t_screenshot(self, a):
-        scale = float(a.get("scale", 0.6))
+        scale = float(a.get("scale", 0.45))
         self.ui.hide_for_shot()
         try:
-            rc, _, err = run(["grim", "-s", str(scale), "-t", "png", SHOT_PATH], timeout=15)
+            rc, _, err = run(
+                ["grim", "-s", str(scale), "-t", "jpeg", "-q", "80", SHOT_PATH],
+                timeout=15)
         finally:
             self.ui.show_after_shot()
         if rc != 0:
             return {"text": f"截图失败：{err.strip()}"}
-        size = png_size(SHOT_PATH) or (0, 0)
+        size = image_size(SHOT_PATH) or (0, 0)
         self.last_shot = size
         sw, sh = screen_size()
         return {
