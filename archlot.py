@@ -235,10 +235,37 @@ class Archlot(Gtk.Application):
     def set_expanded(self, expanded):
         if self.win is None:
             return
-        self.scroll.set_visible(expanded)
-        # GTK4 里窗口已显示后 set_default_size 不生效，用子控件最小尺寸驱动
-        self.root.set_size_request(WIDTH, OPEN_HEIGHT if expanded else IDLE_HEIGHT)
-        GLib.timeout_add(20, self.relocate)
+        if expanded:
+            # 先移动到展开后的顶部位置，再拉长，避免先长出屏幕再跳
+            threading.Thread(target=self._expand_worker, daemon=True).start()
+        else:
+            self.scroll.set_visible(False)
+            self.root.set_size_request(WIDTH, IDLE_HEIGHT)
+            GLib.timeout_add(20, self.relocate)
+        return False
+
+    def _expand_worker(self):
+        sw, sh = screen_size()
+        me = None
+        for w in list_windows():
+            if w.get("app_id") == APP_ID:
+                me = w
+                break
+        if me:
+            pos = (me.get("layout") or {}).get("tile_pos_in_workspace_view") or [0, 0]
+            target_y = sh - OPEN_HEIGHT - BOTTOM_MARGIN
+            dy = round(target_y - pos[1])
+            if abs(dy) >= 1:
+                run(["niri", "msg", "action", "move-floating-window",
+                     "--id", str(me["id"]), f"--y={dy:+d}"], timeout=4)
+                time.sleep(0.025)
+        GLib.idle_add(self._apply_expand)
+
+    def _apply_expand(self):
+        self.scroll.set_visible(True)
+        self.root.set_size_request(WIDTH, OPEN_HEIGHT)
+        GLib.timeout_add(30, self.relocate)
+        return False
 
     def relocate(self):
         """把浮窗钉在屏幕底部居中（后台线程，避免卡住界面）。"""
