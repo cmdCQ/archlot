@@ -3,9 +3,16 @@ window.archlot-window {
 }
 
 .root {
-    background-color: alpha(#141218, 0.45);
+    background-color: #16131c;
+    background-image:
+        linear-gradient(180deg, rgba(233, 221, 255, 0.09) 0%, rgba(233, 221, 255, 0.0) 24%),
+        linear-gradient(180deg, rgba(0, 0, 0, 0.0) 50%, rgba(0, 0, 0, 0.24) 100%),
+        linear-gradient(0deg, rgba(208, 188, 255, 0.05) 0%, rgba(208, 188, 255, 0.0) 30%),
+        url("noise.svg");
+    background-repeat: no-repeat, no-repeat, no-repeat, repeat;
+    background-size: auto, auto, auto, 128px 128px;
     border-radius: 18px;
-    border: 1px solid alpha(#d0bcff, 0.16);
+    border: 1px solid rgba(208, 188, 255, 0.18);
 }
 
 scrolledwindow,
@@ -53,7 +60,7 @@ entry:focus > text {
 }
 
 .confirm-bar {
-    background: alpha(#d0bcff, 0.08);
+    background: rgba(208, 188, 255, 0.08);
     border-radius: 12px;
     padding: 6px;
 }
@@ -64,7 +71,7 @@ entry:focus > text {
 }
 
 button.small {
-    background: alpha(#d0bcff, 0.16);
+    background: rgba(208, 188, 255, 0.16);
     color: #d8c8ff;
     border-radius: 8px;
     padding: 5px 14px;
@@ -74,7 +81,7 @@ button.small {
 }
 
 button.small:hover {
-    background: alpha(#d0bcff, 0.28);
+    background: rgba(208, 188, 255, 0.28);
 }
 
 spinner {
