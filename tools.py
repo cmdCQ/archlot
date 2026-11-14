@@ -330,10 +330,17 @@ class Tools:
             if rc != 0:
                 return {"text": f"打字失败：{err.strip()}"}
         else:
-            rc, _, err = run(["wl-copy"], input_text=text, timeout=10)
-            if rc != 0:
-                return {"text": f"写剪贴板失败：{err.strip()}"}
-            time.sleep(0.1)
+            # wl-copy 会 fork 到后台常驻，继承 stdout/stderr 会让父进程读不到 EOF
+            # 一直卡到超时。这里丢弃管道，让它立刻返回。
+            try:
+                subprocess.run(
+                    ["wl-copy"], input=text.encode(),
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    timeout=5, check=False,
+                )
+            except (OSError, subprocess.SubprocessError) as exc:
+                return {"text": f"写剪贴板失败：{exc}"}
+            time.sleep(0.15)
             self._press("ctrl+v")
         return {"text": f"已输入 {len(text)} 个字符"}
 

@@ -63,7 +63,7 @@ def load_config():
         "api_base": "https://api.deepseek.com",
         "model": "deepseek-flash",
         "max_tokens": 4096,
-        "max_rounds": 24,
+        "max_rounds": 80,
         "workspace": os.path.expanduser("~/archlot-workspace"),
     }
     try:
@@ -526,7 +526,7 @@ class Archlot(Gtk.Application):
         gen = self._gen
         self.messages.append({"role": "user", "content": text})
         try:
-            max_rounds = int(self.cfg.get("max_rounds", 24))
+            max_rounds = int(self.cfg.get("max_rounds", 80))
             for _ in range(max_rounds):
                 if self._cancel.is_set() or gen != self._gen:
                     break
