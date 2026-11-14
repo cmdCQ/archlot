@@ -114,6 +114,7 @@ class Archlot(Gtk.Application):
         win = Gtk.ApplicationWindow(application=self)
         win.set_title("Archlot")
         win.set_decorated(False)
+        win.set_resizable(False)
         win.set_default_size(WIDTH, IDLE_HEIGHT)
         win.add_css_class("archlot-window")
         self.add_window(win)
@@ -283,9 +284,13 @@ class Archlot(Gtk.Application):
     def clear(self):
         self.messages = []
         self.text.get_buffer().set_text("")
-        self.win.set_default_size(WIDTH, IDLE_HEIGHT)
-        self.set_expanded(False)
-        self.root.queue_resize()
+        self.collapse()
+
+    def collapse(self):
+        self.scroll.set_visible(False)
+        self.root.set_size_request(WIDTH, IDLE_HEIGHT)
+        GLib.timeout_add(20, self.relocate)
+        return False
 
     # ------------------------------------------------------------ 对话
 
