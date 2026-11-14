@@ -143,7 +143,7 @@ class Archlot(Gtk.Application):
         self.scroll.set_visible(True)
         root.append(self.scroll)
 
-        self.msgbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        self.msgbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
         self.msgbox.add_css_class("messages")
         self.msgbox.set_valign(Gtk.Align.START)
         self.scroll.set_child(self.msgbox)
@@ -157,7 +157,7 @@ class Archlot(Gtk.Application):
         self.empty_state = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
         self.empty_state.add_css_class("empty-state")
         self.empty_state.set_valign(Gtk.Align.CENTER)
-        empty_mark = Gtk.Label(label="✦")
+        empty_mark = Gtk.Label(label="ARCHLOT")
         empty_mark.add_css_class("empty-mark")
         empty_title = Gtk.Label(label="有什么需要处理？")
         empty_title.add_css_class("empty-title")
