@@ -140,7 +140,7 @@ class Archlot(Gtk.Application):
         self.scroll = Gtk.ScrolledWindow()
         self.scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.scroll.set_vexpand(True)
-        self.scroll.set_visible(False)
+        self.scroll.set_visible(True)
         root.append(self.scroll)
 
         self.msgbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
@@ -512,7 +512,8 @@ class Archlot(Gtk.Application):
 
     def collapse(self):
         self.divider.set_visible(False)
-        self.scroll.set_visible(False)
+        # 空闲态也保留欢迎内容；有对话时才收起消息区。
+        self.scroll.set_visible(self.empty_state.get_visible())
         self.root.set_size_request(WIDTH, IDLE_HEIGHT)
         GLib.timeout_add(20, self.relocate)
         return False

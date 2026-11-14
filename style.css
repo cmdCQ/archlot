@@ -1,7 +1,7 @@
 window.archlot-window { background-color: transparent; }
 
 .root {
-    background-color: alpha(#15151a, 0.72);
+    background-color: alpha(#15151a, 0.88);
     border-radius: 15px;
     border: 1px solid alpha(#e3dced, 0.12);
     box-shadow: inset 0 1px 0 alpha(#ffffff, 0.045), 0 8px 30px alpha(#000000, 0.16);
@@ -12,12 +12,12 @@ scrolledwindow > viewport {
     background-color: transparent;
 }
 
-.messages { margin: 16px 22px 12px 22px; }
+.messages { margin: 12px 22px 8px 22px; }
 
-.empty-state { margin-top: 18px; margin-bottom: 2px; }
-.empty-mark { color: alpha(#d1c2ff, 0.9); font-size: 16pt; }
-.empty-title { color: alpha(#f6f3fa, 0.86); font-size: 11pt; font-weight: 600; }
-.empty-hint { color: alpha(#d9d3e5, 0.42); font-size: 8.5pt; }
+.empty-state { margin-top: 8px; margin-bottom: 2px; }
+.empty-mark { color: alpha(#d1c2ff, 0.78); font-size: 11pt; }
+.empty-title { color: alpha(#f6f3fa, 0.92); font-size: 10.5pt; font-weight: 600; }
+.empty-hint { color: alpha(#d9d3e5, 0.52); font-size: 8pt; }
 
 .user-bubble {
     background-color: alpha(#bba9ed, 0.12);
