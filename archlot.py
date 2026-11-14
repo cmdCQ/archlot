@@ -18,6 +18,14 @@ import llm  # noqa: E402
 from tools import TOOLS, Tools, list_windows, niri_json, run, screen_size  # noqa: E402
 
 APP_ID = "com.cqsomt.archlot"
+
+
+def _log(msg):
+    try:
+        with open("/tmp/archlot-app.log", "a") as f:
+            f.write(f"{time.strftime('%H:%M:%S')} {msg}\n")
+    except OSError:
+        pass
 BASE = os.path.dirname(os.path.abspath(__file__))
 CONF_PATH = os.path.expanduser("~/.config/archlot/config.json")
 CSS_PATH = os.path.join(BASE, "style.css")
@@ -30,6 +38,7 @@ WIDTH = 900
 SYSTEM_PROMPT = """你是 Archlot，跑在用户 cqsomt 的 Arch Linux + niri 桌面上的私人 AI 助手。
 
 回答用中文，直接、简短，不要客套话和废话。
+输出纯文本：不要用 Markdown 标记（**、#、```、表格竖线），需要强调就用普通句子。
 
 你有真正能干活的工具：执行 shell、读写文件、看屏幕、动鼠标、敲键盘、切窗口。
 - 需要看屏幕时先 screenshot，之后所有坐标都用那张截图的像素坐标。
@@ -106,10 +115,13 @@ class Archlot(Gtk.Application):
         win.add_css_class("archlot-window")
         self.add_window(win)
         self.win = win
+        win.connect("close-request", lambda *_: (_log("close-request"), True)[1])
 
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         root.add_css_class("root")
+        root.set_size_request(WIDTH, IDLE_HEIGHT)
         win.set_child(root)
+        self.root = root
 
         self.scroll = Gtk.ScrolledWindow()
         self.scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -129,8 +141,8 @@ class Archlot(Gtk.Application):
         self._make_tags()
 
         # 确认条
-        self.confirm = Gtk.Revealer()
-        self.confirm.set_transition_type(Gtk.RevealerTransitionType.SLIDE_UP)
+        self.confirm_revealer = Gtk.Revealer()
+        self.confirm_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_UP)
         cbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         cbox.add_css_class("confirm-bar")
         cbox.set_margin_start(18)
@@ -149,8 +161,8 @@ class Archlot(Gtk.Application):
             cbox.append(b)
         yes.connect("clicked", lambda *_: self._answer_confirm(True))
         no.connect("clicked", lambda *_: self._answer_confirm(False))
-        self.confirm.set_child(cbox)
-        root.append(self.confirm)
+        self.confirm_revealer.set_child(cbox)
+        root.append(self.confirm_revealer)
 
         # 输入条
         bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -186,16 +198,19 @@ class Archlot(Gtk.Application):
     # ------------------------------------------------------------ 显示/隐藏
 
     def show(self):
+        _log("show")
         self.ensure_ui()
         self.win.present()
         self.entry.grab_focus()
         GLib.timeout_add(90, self.relocate)
 
     def hide(self):
+        _log("hide")
         if self.win is not None:
             self.win.set_visible(False)
 
     def toggle(self):
+        _log(f"toggle visible={self.win.get_visible() if self.win else None}")
         if self.win is not None and self.win.get_visible() and self.win.is_active():
             self.hide()
         else:
@@ -203,7 +218,10 @@ class Archlot(Gtk.Application):
 
     def on_key(self, controller, keyval, keycode, state):
         if keyval == Gdk.KEY_Escape:
-            self.hide()
+            if self._confirm_event is not None and not self._confirm_event.is_set():
+                self._answer_confirm(False)
+            else:
+                self.hide()
             return True
         if keyval == Gdk.KEY_l and (state & Gdk.ModifierType.CONTROL_MASK):
             self.clear()
@@ -214,8 +232,9 @@ class Archlot(Gtk.Application):
         if self.win is None:
             return
         self.scroll.set_visible(expanded)
-        self.win.set_default_size(WIDTH, OPEN_HEIGHT if expanded else IDLE_HEIGHT)
-        GLib.timeout_add(130, self.relocate)
+        # GTK4 里窗口已显示后 set_default_size 不生效，用子控件最小尺寸驱动
+        self.root.set_size_request(WIDTH, OPEN_HEIGHT if expanded else IDLE_HEIGHT)
+        GLib.timeout_add(150, self.relocate)
 
     def relocate(self):
         """把浮窗钉在屏幕底部居中。"""
@@ -277,6 +296,7 @@ class Archlot(Gtk.Application):
                 calls = msg.get("tool_calls")
                 if not calls:
                     break
+                pending_images = []
                 for tc in calls:
                     name = tc["function"]["name"]
                     try:
@@ -292,14 +312,17 @@ class Archlot(Gtk.Application):
                     })
                     GLib.idle_add(self.note_result, result["text"])
                     if result.get("image"):
-                        with open(result["image"], "rb") as f:
-                            b64 = base64.b64encode(f.read()).decode()
-                        self.messages.append({"role": "user", "content": [
-                            {"type": "text",
-                             "text": "（这是当前的屏幕截图，坐标以这张图的像素为准）"},
-                            {"type": "image_url",
-                             "image_url": {"url": "data:image/png;base64," + b64}},
-                        ]})
+                        pending_images.append(result["image"])
+                # 所有 tool 消息必须紧跟上一条 assistant，图片只能之后补
+                for image_path in pending_images:
+                    with open(image_path, "rb") as f:
+                        b64 = base64.b64encode(f.read()).decode()
+                    self.messages.append({"role": "user", "content": [
+                        {"type": "text",
+                         "text": "（这是当前的屏幕截图，坐标以这张图的像素为准）"},
+                        {"type": "image_url",
+                         "image_url": {"url": "data:image/png;base64," + b64}},
+                    ]})
             self.trim_history()
         except llm.LLMError as exc:
             GLib.idle_add(self.append_error, str(exc))
@@ -320,6 +343,10 @@ class Archlot(Gtk.Application):
         self.busy = False
         self.spinner.stop()
         self.spinner.set_visible(False)
+        # 干完活把焦点收回输入框，方便接着说话
+        if self.win is not None and self.win.get_visible():
+            self.win.present()
+            self.entry.grab_focus()
         return False
 
     # ------------------------------------------------------------ 文本渲染
@@ -344,6 +371,7 @@ class Archlot(Gtk.Application):
         self._insert(text + "\n", "user")
 
     def append_assistant(self, text):
+        text = text.replace("`", "").replace("**", "")
         self._insert(text, "assistant")
         return False
 
@@ -377,13 +405,13 @@ class Archlot(Gtk.Application):
 
     def _show_confirm(self, title, detail):
         self.confirm_label.set_text(f"{title}\n{detail[:300]}")
-        self.confirm.set_reveal_child(True)
+        self.confirm_revealer.set_reveal_child(True)
         self.set_expanded(True)
         GLib.timeout_add(140, self.relocate)
         return False
 
     def _answer_confirm(self, ok):
-        self.confirm.set_reveal_child(False)
+        self.confirm_revealer.set_reveal_child(False)
         self._confirm_ok = ok
         if self._confirm_event is not None:
             self._confirm_event.set()

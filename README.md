@@ -33,3 +33,18 @@ archlot --daemon   # 后台预热，不显示
 ```
 
 快捷键：`Enter` 发送，`Esc` 收起，`Ctrl+L` 开新对话。
+
+## 按键映射（重要）
+
+这台机器的 Copilot 键在 xkb 里映射为：
+
+- 单独按：`XF86TouchpadOff`
+- `Super+Shift` + 该键：`XF86Assistant`（Copilot 专用 keysym）
+
+但 niri 匹配快捷键用的是**基础层符号**，所以绑定写成：
+
+```kdl
+Mod+Shift+XF86TouchpadOff repeat=false { spawn "~/.local/bin/ai"; }
+```
+
+不要写成 `Mod+Shift+F23`（内核看是 F23，但 xkb 层不是，不会触发）。
