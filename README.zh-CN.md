@@ -16,6 +16,7 @@
 [![Wayland](https://img.shields.io/badge/Wayland-niri-22D3EE)](https://github.com/YaLTeR/niri)
 [![DeepSeek](https://img.shields.io/badge/LLM-DeepSeek-4F46E5)](https://www.deepseek.com/)
 [![License](https://img.shields.io/badge/license-MIT-22C55E)](LICENSE)
+[![CI](https://github.com/cmdCQ/archlot/actions/workflows/ci.yml/badge.svg)](https://github.com/cmdCQ/archlot/actions/workflows/ci.yml)
 
 [English](README.md) · **简体中文**
 
@@ -182,7 +183,9 @@ Archlot 已经可以日常使用，但仍在开发中。已知限制：
 
 ## 参与开发
 
-先读 [`AGENT.md`](AGENT.md)——它是代码规则的唯一来源。然后：
+先读 [`AGENT.md`](AGENT.md)——它是代码规则的唯一来源。
+开发环境和 PR 约定见 [`CONTRIBUTING.md`](CONTRIBUTING.md)，
+安全问题走 [`SECURITY.md`](SECURITY.md)。然后：
 
 ```bash
 python -m compileall -q core agent tools ui archlot.py

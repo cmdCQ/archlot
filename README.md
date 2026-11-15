@@ -16,6 +16,7 @@ type, run commands, and remember how you work.
 [![Wayland](https://img.shields.io/badge/Wayland-niri-22D3EE)](https://github.com/YaLTeR/niri)
 [![DeepSeek](https://img.shields.io/badge/LLM-DeepSeek-4F46E5)](https://www.deepseek.com/)
 [![License](https://img.shields.io/badge/license-MIT-22C55E)](LICENSE)
+[![CI](https://github.com/cmdCQ/archlot/actions/workflows/ci.yml/badge.svg)](https://github.com/cmdCQ/archlot/actions/workflows/ci.yml)
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
@@ -191,7 +192,8 @@ compositor support, and more semantic adapters for common apps.
 ## Contributing
 
 Read [`AGENT.md`](AGENT.md) first — it is the single source of truth for code rules.
-Then:
+[`CONTRIBUTING.md`](CONTRIBUTING.md) covers setup and pull-request expectations;
+security reports go through [`SECURITY.md`](SECURITY.md). Then:
 
 ```bash
 python -m compileall -q core agent tools ui archlot.py
