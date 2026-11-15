@@ -2,7 +2,7 @@
 
 写给接手的人（或 Claude Code）。这里记录**代码里看不出来的上下文**：踩过的坑、用户的偏好、还没做完的决定。
 
-仓库：`~/projects/archlot`，Git 干净，最新提交 `e2a9e6f`。
+仓库：`~/projects/archlot`，当前架构重构在 `refactor/architecture` 分支。
 运行：`bin/archlot --toggle`。日志：`/tmp/archlot-app.log`。
 
 ---
@@ -35,7 +35,7 @@
 ## 3. 当前实现要点
 
 ### 3.1 窗口与位置
-- `archlot.py` 里 `IDLE/TAB` 已废弃；现在是单一面板 `PANEL_W=380`
+- `ui/panel.py` 里 `IDLE/TAB` 已废弃；现在是单一面板 `PANEL_W=380`
 - 位置/尺寸/透明度持久化在 `~/.config/archlot/window.json`
 - `_clamp_geom()` 保证窗口在屏幕内；`_fit_to_screen()` 每 3 秒检查分辨率/缩放变化并重新贴边
 - 拖动：标题栏 `Gtk.GestureClick` → `surface.begin_move()`
@@ -53,7 +53,7 @@
 
 ### 3.4 点击精度（做过严格测试）
 - 截图默认 `scale=0.8`，小目标建议 1.0
-- `Tools._to_screen()`：`x * 逻辑宽 / 图片宽`，**不要 int 截断**
+- `tools/desktop.py:to_screen()`：`x * 逻辑宽 / 图片宽`，**不要 int 截断**
 - 实测：24 个 24px 目标 × 3 档缩放，72/72 命中，平均误差 0.27px，最大 0.4px
 - 剩余误差来自模型“看”截图的精度：±1 图像像素在 0.45/0.6/0.8 下分别放大成 2.2/1.7/1.3 逻辑像素
 - 面板挡住点击目标时 `park_panel()` 会临时挪开
@@ -68,13 +68,13 @@
 - `_scroll_tick` 每帧重读最新高度；`finish()` 后 0/120/300ms 各补一次
 
 ### 3.7 Markdown
-- `md.py` → Pango markup
+- `ui/markdown.py` → Pango markup
 - 支持标题、粗体、斜体、行内代码、代码块、列表、引用、分隔线、简单表格
 - 流式输出时实时渲染；光标通过尾部字符的 alpha 闪烁
 - **坑**：`alpha="0%"` 非法，必须用数值（0–65536）
 
 ### 3.8 记忆
-- `memory.py`：SQLite + FTS5（trigram），中文用 3 字滑窗检索
+- `core/memory.py`：SQLite + FTS5（trigram），中文用 3 字滑窗检索
 - 写入：每轮自动抽取（偏好/环境/项目）+ 失败反思（经验）
 - 去重：写入时相似度合并（bigram Jaccard ≥0.72），启动 / 清空会话时本地聚类（≥0.45）
 - 经验类检索加权靠前；上下文里标 `[经验]`
@@ -88,57 +88,37 @@
 
 ---
 
-## 4. 待做的重构（建议顺序）
+## 4. 重构状态
 
-### Phase 1 — 合并策略层（行为不变）
-新建 `policy.py`：
+已完成（`refactor/architecture` 分支）：
+- 拆成 `core / agent / tools / ui`，入口 `archlot.py` 只做接线
+- 策略统一在 `tools/policy.py`，`Policy.describe()` 生成提示词里的策略段
+- 消息历史统一在 `agent/history.py`，工具结果统一为 `ToolResult`
+- 主线程不再跑 niri 子进程；跨线程更新走 `ui/panel.py` 的 `_ui` / `_main_sync`
+- 加入 stdlib `unittest` 测试
 
-```python
-class Policy:
-    def review(self, tool, args) -> Decision      # allow / ask / deny + reason
-    def effort(self, phase, streak, failed) -> str | None  # low/medium/high/None
-```
-
-- 把 `tools.py` 里的 `DANGER_RE`、`DANGER_AUTO_RE`、`_is_dangerous`、`_outside_write` 搬进去
-- 把 `confirm_mode` 迁到 `policy.confirm`（auto / strict），旧字段自动迁移
-- `tools.py` 只调 `self.ui.policy.review(...)`；agent 循环每轮调 `policy.effort(...)`
-- 所有决定写一行审计日志：`policy review=ask reason=rm_home effort=high phase=exec`
-
-### Phase 2 — 拆文件
-```
-archlot.py       入口 + CLI（~120 行）
-ui/panel.py      窗口、布局、动效、消息渲染
-agent.py         run_agent 循环、流式、工具调度、记忆触发
-config.py        默认值、迁移、读写
-```
-纯搬迁，不改行为。搬完用截图对比确认。
-
-### Phase 3 — 思考强度自适应
-- 阶段：`planning`（新用户消息）/ `executing`（连续简单工具）/ `verifying`（截图确认、读结果）
-- `executing` 连续 ≥3 轮无失败 → `low`；`verifying` → `medium`
-- 任何失败 → `high`，保持 2 轮
-- **只在阶段边界切换**，不要每步都改（会抖）
-- 默认 `off`，先 A/B 测量再决定是否默认开
-
-参考实现（GitHub）：
-- `robertn702/reasoning-router` — 模型固定，只改 effort
-- `luckeyfaraday/auto-reasoning` — 确定性打分 + 失败升档 + 审计
-- `pydantic/pydantic-ai-harness#84` — PhaseBasedEffort / HeuristicEffort
-- `blackjose007-stack/adaptive-reasoning-router` — 强调在工作单边界改档
-
-**前置条件**：先确认 DeepSeek 接口是否接受 `reasoning_effort` 及可用值。不支持就不要硬做。
+还没做：
+- 思考强度自适应。先确认 DeepSeek 是否接受 `reasoning_effort` 及可用值；
+  不支持就不要硬做。若做，只在阶段边界切档，默认关，先 A/B。
+- 点击精度回归脚本（6×4 的 24px 按钮网格）。
 
 ---
 
-## 5. 测试建议
-- `tests/test_policy.py`：危险命令分类、strict/auto 行为、effort 阶段决策
+## 5. 测试
+- `tests/test_policy.py`：危险命令分类、strict/auto 行为
+- `tests/test_history.py`：tool_call 配对、裁剪、截图消息
 - `tests/test_memory.py`：相似度合并、检索、忘掉
-- `tests/test_md.py`：各类 Markdown → markup，非法字符转义
-- 点击精度：起一个 6×4 的 24px 按钮网格，从截图坐标反算并验证落点（历史上这样发现过 int 截断 bug）
+- `tests/test_markdown.py`：各类 Markdown → markup
+- `tests/test_coords.py`：截图坐标 → 屏幕坐标
+- `tests/test_tools.py`：schema 与 HANDLERS 一一对应
+
+```bash
+python -m unittest discover -s tests -t .
+```
 
 ---
 
-## 6. 不变量（改代码时必须保持）
+## 6. 不变量（完整版见 `AGENT.md`）
 1. worker 线程不碰 GTK
 2. 截图坐标精确换算，不截断
 3. Pango alpha 用数值

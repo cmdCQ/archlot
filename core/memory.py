@@ -6,11 +6,14 @@
 - 人类可以直接读/改 profile.md 和 notes/
 """
 
+import contextlib
 import json
 import os
 import re
 import sqlite3
 import time
+
+from .config import MEMORY_DIR
 
 DEFAULT_PROFILE = """# 用户档案
 
@@ -45,8 +48,7 @@ def _norm(text):
 
 class Memory:
     def __init__(self, base=None):
-        self.base = os.path.abspath(os.path.expanduser(
-            base or "~/.config/archlot/memory"))
+        self.base = os.path.abspath(os.path.expanduser(base or MEMORY_DIR))
         self.notes_dir = os.path.join(self.base, "notes")
         os.makedirs(self.notes_dir, exist_ok=True)
         self.db_path = os.path.join(self.base, "facts.db")
@@ -61,10 +63,16 @@ class Memory:
             with open(self.profile_path, "w") as f:
                 f.write(DEFAULT_PROFILE)
 
+    @contextlib.contextmanager
     def _connect(self):
-        con = sqlite3.connect(self.db_path)
-        con.execute("PRAGMA journal_mode=WAL")
-        return con
+        con = sqlite3.connect(self.db_path, timeout=5)
+        try:
+            con.execute("PRAGMA journal_mode=WAL")
+            con.execute("PRAGMA busy_timeout=5000")
+            yield con
+            con.commit()
+        finally:
+            con.close()
 
     def _init_db(self):
         with self._connect() as con:
