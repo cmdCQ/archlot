@@ -4,47 +4,50 @@ window.archlot-window {
 
 .root {
     background-image: linear-gradient(180deg,
-        rgba(30, 29, 38, 0.985), rgba(10, 10, 14, 0.975));
+        rgba(26, 25, 33, 0.975), rgba(9, 9, 13, 0.965));
     border-radius: 18px;
-    border: 1px solid rgba(230, 225, 240, 0.11);
+    border: 1px solid rgba(255, 255, 255, 0.075);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07),
-                0 18px 48px rgba(0, 0, 0, 0.30);
-}
-
-/* ---------------- 收起态 ---------------- */
-
-.tab {
-    background-color: transparent;
-    min-width: 56px;
-    min-height: 56px;
-}
-
-.tab-mark {
-    color: #cdbcff;
-    font-size: 15pt;
+                inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+                0 18px 50px rgba(0, 0, 0, 0.35);
 }
 
 /* ---------------- 顶部状态 ---------------- */
 
 .header {
     margin: 16px 20px 12px 20px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid rgba(217, 211, 229, 0.08);
+    padding-bottom: 11px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.055);
 }
 
 .brand {
-    color: rgba(246, 243, 250, 0.78);
+    color: rgba(240, 237, 248, 0.72);
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 8pt;
     font-weight: 700;
-    letter-spacing: 1.6px;
+    letter-spacing: 2px;
 }
 
 .status {
-    color: rgba(207, 200, 214, 0.52);
+    color: rgba(190, 184, 202, 0.55);
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 8pt;
-    margin-right: 4px;
+    margin-right: 2px;
+}
+
+.thinking-dot {
+    min-width: 6px;
+    min-height: 6px;
+    border-radius: 99px;
+    background-color: #c6b4ff;
+    margin-right: 2px;
+    animation: dot-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes dot-pulse {
+    0%   { opacity: 0.20; }
+    50%  { opacity: 0.95; }
+    100% { opacity: 0.20; }
 }
 
 /* ---------------- 消息 ---------------- */
@@ -58,28 +61,32 @@ window.archlot-window {
 }
 
 .empty-title {
-    color: rgba(246, 243, 250, 0.94);
+    color: rgba(244, 241, 249, 0.95);
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 13pt;
     font-weight: 600;
 }
 
 .empty-hint {
-    color: rgba(207, 200, 214, 0.48);
+    color: rgba(190, 184, 202, 0.50);
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 9pt;
 }
 
 .user-bubble {
-    background-color: rgba(187, 169, 237, 0.13);
-    border: 1px solid rgba(216, 204, 255, 0.12);
+    background-image: linear-gradient(160deg,
+        rgba(198, 180, 255, 0.17), rgba(160, 140, 220, 0.10));
+    border: 1px solid rgba(205, 188, 255, 0.16);
     border-radius: 14px 14px 5px 14px;
     padding: 8px 12px;
     margin-left: 24px;
+    transition-property: background-color, border-color;
+    transition-duration: 160ms;
+    transition-timing-function: ease-out;
 }
 
 .user-text {
-    color: #f6f0ff;
+    color: #f7f3ff;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 10pt;
@@ -91,16 +98,16 @@ window.archlot-window {
 }
 
 .assistant-name {
-    color: rgba(201, 186, 255, 0.55);
+    color: rgba(198, 180, 255, 0.52);
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 7.5pt;
     font-weight: 700;
-    letter-spacing: 1.2px;
+    letter-spacing: 1.4px;
 }
 
 .assistant-text {
-    color: rgba(246, 243, 250, 0.93);
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.60), 0 0 1px rgba(0, 0, 0, 0.40);
+    color: rgba(240, 237, 246, 0.95);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 0 1px rgba(0, 0, 0, 0.35);
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 10.5pt;
 }
@@ -111,47 +118,68 @@ window.archlot-window {
 }
 
 .tool-icon {
-    color: rgba(200, 185, 255, 0.45);
+    color: rgba(198, 180, 255, 0.40);
     font-size: 7.5pt;
 }
 
 .tool-text {
-    color: rgba(201, 195, 209, 0.42);
+    color: rgba(190, 184, 202, 0.44);
     font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
     font-size: 8pt;
 }
 
 .notice-text {
-    color: rgba(169, 161, 179, 0.85);
+    color: rgba(170, 164, 183, 0.85);
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 9.5pt;
     font-style: italic;
+    transition-property: opacity;
+    transition-duration: 200ms;
 }
 
 .error-text {
-    background-color: rgba(242, 184, 181, 0.10);
+    background-color: rgba(242, 184, 181, 0.09);
+    border: 1px solid rgba(242, 184, 181, 0.16);
     border-radius: 12px;
     padding: 8px 12px;
-    color: #f2b8b5;
+    color: #f3b9b6;
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 9.5pt;
+    transition-property: opacity;
+    transition-duration: 200ms;
 }
 
 /* ---------------- 输入区 ---------------- */
 
 .divider {
-    background-color: rgba(217, 211, 229, 0.10);
+    background-image: linear-gradient(to right,
+        rgba(255, 255, 255, 0.0),
+        rgba(255, 255, 255, 0.09),
+        rgba(255, 255, 255, 0.0));
     min-height: 1px;
     border: none;
-    margin: 0 18px 0 18px;
+    margin: 0 16px 0 16px;
 }
 
 .input-bar {
-    background-color: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(222, 215, 237, 0.14);
+    background-image: linear-gradient(180deg,
+        rgba(0, 0, 0, 0.26), rgba(0, 0, 0, 0.14));
+    border: 1px solid rgba(255, 255, 255, 0.075);
     border-radius: 14px;
     min-height: 44px;
     margin: 10px 14px 14px 14px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.20);
+    transition-property: border-color, background-image, box-shadow;
+    transition-duration: 170ms;
+    transition-timing-function: ease-out;
+}
+
+.input-bar:focus-within {
+    border-color: rgba(198, 180, 255, 0.38);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07),
+                inset 0 0 0 1px rgba(198, 180, 255, 0.10),
+                0 0 18px rgba(150, 120, 255, 0.10);
 }
 
 entry {
@@ -159,20 +187,20 @@ entry {
     background-image: none;
     border: none;
     box-shadow: none;
-    color: #f4f0f8;
+    color: #f4f1fa;
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 10.5pt;
-    caret-color: #cdbcff;
+    caret-color: #c6b4ff;
     margin-left: 6px;
 }
 
 entry > text {
     background: transparent;
-    color: #f4f0f8;
+    color: #f4f1fa;
 }
 
 entry > text > placeholder {
-    color: rgba(207, 200, 214, 0.40);
+    color: rgba(190, 184, 202, 0.42);
 }
 
 entry:focus,
@@ -186,56 +214,68 @@ entry:focus > text {
 }
 
 button.send {
-    background-color: rgba(187, 169, 237, 0.20);
-    color: #e9e2ff;
+    background-image: linear-gradient(160deg, #d2c4ff, #b8a2ff);
+    color: #1a1426;
     border: none;
-    box-shadow: none;
-    border-radius: 10px;
-    min-width: 30px;
-    min-height: 30px;
+    box-shadow: 0 2px 10px rgba(130, 100, 230, 0.28);
+    border-radius: 99px;
+    min-width: 28px;
+    min-height: 28px;
     padding: 0;
     margin-right: 7px;
     font-size: 11pt;
     font-weight: 700;
+    transition-property: background-image, border-color, box-shadow, color;
+    transition-duration: 140ms;
+    transition-timing-function: ease-out;
 }
 
 button.send:hover {
-    background-color: rgba(187, 169, 237, 0.34);
+    background-image: linear-gradient(160deg, #ded3ff, #c9b6ff);
+    box-shadow: 0 3px 16px rgba(140, 110, 240, 0.38);
+}
+
+button.send:active {
+    background-image: linear-gradient(160deg, #b6a3f0, #a58fe6);
 }
 
 /* ---------------- 确认条 ---------------- */
 
 .confirm-bar {
-    background-color: rgba(208, 188, 255, 0.09);
-    border: 1px solid rgba(208, 188, 255, 0.14);
+    background-color: rgba(198, 180, 255, 0.07);
+    border: 1px solid rgba(198, 180, 255, 0.16);
     border-radius: 12px;
     padding: 10px 12px;
 }
 
 .confirm-text {
-    color: #cfc8d6;
+    color: rgba(226, 221, 236, 0.88);
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 9.5pt;
 }
 
 button.small {
-    background-color: rgba(208, 188, 255, 0.16);
-    color: #d8c8ff;
+    background-color: rgba(255, 255, 255, 0.06);
+    color: rgba(236, 232, 245, 0.90);
+    border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 8px;
     padding: 4px 14px;
     font-size: 9.5pt;
     box-shadow: none;
-    border: none;
+    transition-property: background-color, border-color, color;
+    transition-duration: 140ms;
+    transition-timing-function: ease-out;
 }
 
 button.small:hover {
-    background-color: rgba(208, 188, 255, 0.28);
+    background-color: rgba(255, 255, 255, 0.11);
+    border-color: rgba(255, 255, 255, 0.16);
 }
 
 /* ---------------- 其它 ---------------- */
 
 spinner {
-    color: #cdbcff;
+    color: #c6b4ff;
 }
 
 scrollbar {
@@ -244,12 +284,14 @@ scrollbar {
 }
 
 scrollbar slider {
-    background: rgba(208, 188, 255, 0.18);
+    background-color: rgba(198, 180, 255, 0.16);
     border-radius: 99px;
     min-width: 3px;
     min-height: 28px;
+    transition-property: background-color;
+    transition-duration: 160ms;
 }
 
 scrollbar slider:hover {
-    background: rgba(208, 188, 255, 0.32);
+    background-color: rgba(198, 180, 255, 0.30);
 }

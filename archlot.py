@@ -149,6 +149,10 @@ class Archlot(Gtk.Application):
         brand = Gtk.Label(label="ARCHLOT")
         brand.add_css_class("brand")
         brand.set_xalign(0)
+        self.thinking_dot = Gtk.Box()
+        self.thinking_dot.add_css_class("thinking-dot")
+        self.thinking_dot.set_valign(Gtk.Align.CENTER)
+        self.thinking_dot.set_visible(False)
         self.status = Gtk.Label(label="")
         self.status.add_css_class("status")
         self.status.set_hexpand(True)
@@ -156,6 +160,7 @@ class Archlot(Gtk.Application):
         self.spinner = Gtk.Spinner()
         self.spinner.set_visible(False)
         self.header.append(brand)
+        self.header.append(self.thinking_dot)
         self.header.append(self.status)
         self.header.append(self.spinner)
         root.append(self.header)
@@ -191,7 +196,13 @@ class Archlot(Gtk.Application):
         empty_hint.set_wrap(True)
         self.empty_state.append(empty_title)
         self.empty_state.append(empty_hint)
-        self.msgbox.append(self.empty_state)
+        self.empty_revealer = Gtk.Revealer()
+        self.empty_revealer.set_transition_type(
+            Gtk.RevealerTransitionType.CROSSFADE)
+        self.empty_revealer.set_transition_duration(240)
+        self.empty_revealer.set_child(self.empty_state)
+        self.empty_revealer.set_reveal_child(True)
+        self.msgbox.append(self.empty_revealer)
 
         # 确认条
         self.confirm_revealer = Gtk.Revealer()
@@ -276,16 +287,87 @@ class Archlot(Gtk.Application):
         self.status.set_visible(True)
 
     def _scroll_bottom(self):
+        """平滑滚到底部，流式输出时不会一格一格跳。"""
         adj = self.scroll.get_vadjustment()
-        if adj is not None:
-            adj.set_value(adj.get_upper())
+        if adj is None:
+            return False
+        self._scroll_target = max(0.0, adj.get_upper() - adj.get_page_size())
+        if not getattr(self, "_scroll_anim", False):
+            self._scroll_anim = True
+            GLib.timeout_add(16, self._scroll_tick)
         return False
 
+    def _scroll_tick(self):
+        adj = self.scroll.get_vadjustment()
+        if adj is None:
+            self._scroll_anim = False
+            return False
+        cur = adj.get_value()
+        target = getattr(self, "_scroll_target", cur)
+        delta = target - cur
+        if abs(delta) < 1.0:
+            adj.set_value(target)
+            self._scroll_anim = False
+            return False
+        adj.set_value(cur + delta * 0.30)
+        return True
+
+    def _reveal(self, child, slide=True, duration=190):
+        """把控件包进 revealer，用来做进入/退出动效。"""
+        rv = Gtk.Revealer()
+        rv.set_transition_type(
+            Gtk.RevealerTransitionType.SLIDE_UP if slide
+            else Gtk.RevealerTransitionType.CROSSFADE)
+        rv.set_transition_duration(duration)
+        rv.set_child(child)
+        rv.set_reveal_child(False)
+        return rv
+
+    def _append_animated(self, child, slide=True, duration=190):
+        rv = self._reveal(child, slide, duration)
+        self.msgbox.append(rv)
+        GLib.timeout_add(16, self._reveal_now, rv)
+        return rv
+
+    def _reveal_now(self, rv):
+        rv.set_reveal_child(True)
+        return False
+
+    def _set_empty(self, visible, animate=True):
+        if visible and not self.messages:
+            if not self.empty_revealer.get_parent():
+                self.msgbox.append(self.empty_revealer)
+            if animate:
+                GLib.timeout_add(16, self._reveal_now, self.empty_revealer)
+            else:
+                self.empty_revealer.set_reveal_child(True)
+        else:
+            self.empty_revealer.set_reveal_child(False)
+
     def _clear_messages(self):
+        """把消息淡出后移除，避免清空时内容瞬间消失。"""
+        gen = self._gen
+        kids = []
         child = self.msgbox.get_first_child()
         while child is not None:
-            self.msgbox.remove(child)
-            child = self.msgbox.get_first_child()
+            if child is not self.empty_revealer:
+                kids.append(child)
+            child = child.get_next_sibling()
+        for kid in kids:
+            if isinstance(kid, Gtk.Revealer):
+                kid.set_reveal_child(False)
+            else:
+                kid.set_opacity(0)
+        GLib.timeout_add(220, self._drop_children, kids, gen)
+
+    def _drop_children(self, kids, gen):
+        if gen != self._gen:
+            return False
+        for kid in kids:
+            if kid.get_parent() is self.msgbox:
+                self.msgbox.remove(kid)
+        self._set_empty(True)
+        return False
 
     def _wrap_label(self, text="", css_class=None):
         label = Gtk.Label(label=text)
@@ -306,7 +388,7 @@ class Archlot(Gtk.Application):
         label = self._wrap_label(text, "user-text")
         label.set_max_width_chars(30)
         bubble.append(label)
-        self.msgbox.append(bubble)
+        self._append_animated(bubble)
         GLib.idle_add(self._scroll_bottom)
 
     def append_assistant(self, text, gen=None):
@@ -333,7 +415,7 @@ class Archlot(Gtk.Application):
         label = self._wrap_label("", "assistant-text")
         label.set_max_width_chars(32)
         block.append(label)
-        self.msgbox.append(block)
+        self._append_animated(block)
         return label
 
     def _flush_stream(self):
@@ -370,7 +452,7 @@ class Archlot(Gtk.Application):
         text.set_xalign(0)
         row.append(icon)
         row.append(text)
-        self.msgbox.append(row)
+        self._append_animated(row, slide=False, duration=150)
         self._tool_label = text
         self._scroll_bottom()
         return False
@@ -394,7 +476,7 @@ class Archlot(Gtk.Application):
         self._end_stream()
         self._tool_label = None
         label = self._wrap_label(f"⚠ {text}", "error-text")
-        self.msgbox.append(label)
+        self._append_animated(label, slide=False)
         GLib.idle_add(self._scroll_bottom)
         return False
 
@@ -404,7 +486,7 @@ class Archlot(Gtk.Application):
         self._end_stream()
         self._tool_label = None
         label = self._wrap_label(text, "notice-text")
-        self.msgbox.append(label)
+        self._append_animated(label, slide=False)
         GLib.idle_add(self._scroll_bottom)
         return False
 
@@ -529,12 +611,13 @@ class Archlot(Gtk.Application):
         self.divider.set_visible(True)
         self.inputbox.set_visible(True)
         self.confirm_revealer.set_visible(True)
-        self.empty_state.set_visible(not self.messages)
+        self._set_empty(not self.messages, animate=False)
         self._apply_chrome()
         if not self.win.get_visible():
             self.win.present()
         self.win.set_opacity(self.geom.get("opacity", 1.0))
         self._place()
+        self._fade_in()
         self.entry.grab_focus()
 
     def hide(self):
@@ -603,15 +686,13 @@ class Archlot(Gtk.Application):
             GLib.source_remove(self._status_timer)
             self._status_timer = None
         self.status.set_visible(False)
+        self.thinking_dot.set_visible(False)
         self.spinner.stop()
         self.spinner.set_visible(False)
         self.messages = []
         self._end_stream()
         self._clear_messages()
         self._tool_label = None
-        # 清空后回到欢迎页，不要让欢迎内容跟着被删掉
-        self.msgbox.append(self.empty_state)
-        self.empty_state.set_visible(True)
         adj = self.scroll.get_vadjustment()
         if adj is not None:
             adj.set_value(0)
@@ -636,9 +717,10 @@ class Archlot(Gtk.Application):
         self._status_timer = GLib.timeout_add(1000, self._tick_status)
         self.status.set_text("思考中 0s")
         self.status.set_visible(True)
+        self.thinking_dot.set_visible(True)
         self.spinner.set_visible(True)
         self.spinner.start()
-        self.empty_state.set_visible(False)
+        self._set_empty(False)
         self.append_user(text)
         if self.win is not None and not self.win.get_visible():
             self.show()
@@ -741,6 +823,7 @@ class Archlot(Gtk.Application):
             GLib.source_remove(self._status_timer)
             self._status_timer = None
         self.status.set_visible(False)
+        self.thinking_dot.set_visible(False)
         self.spinner.stop()
         self.spinner.set_visible(False)
         # 干完活把焦点收回输入框，方便接着说话
@@ -821,11 +904,27 @@ class Archlot(Gtk.Application):
     def _apply_chrome(self):
         w, h = self.geom["w"], self.geom["h"]
         self.header.set_visible(h >= 160)
-        self.empty_state.set_visible(not self.messages and h >= 240)
+        self._set_empty(not self.messages and h >= 240, animate=False)
         narrow = w < 200
         for side in ("start", "end"):
             getattr(self.inputbox, f"set_margin_{side}")(
                 6 if narrow else 14)
+
+    def _fade_in(self):
+        widgets = [self.header, self.scroll, self.inputbox]
+        for w in widgets:
+            w.set_opacity(0.0)
+        steps = 12
+
+        def tick(i=[0]):
+            i[0] += 1
+            t = min(1.0, i[0] / steps)
+            e = 1 - (1 - t) ** 3
+            for w in widgets:
+                w.set_opacity(e)
+            return i[0] < steps
+
+        GLib.timeout_add(16, tick)
 
     def _apply_panel_size(self):
         self.root.set_size_request(self.geom["w"], self.geom["h"])
