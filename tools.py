@@ -349,11 +349,12 @@ class Tools:
         return None
 
     def _to_screen(self, x, y):
+        """截图像素 → 逻辑坐标。整数像素代表格子中心，所以 +0.5。"""
         sw, sh = screen_size()
         if self.last_shot:
             iw, ih = self.last_shot
             if iw and ih:
-                return x * sw / iw, y * sh / ih
+                return float(x) * sw / iw, float(y) * sh / ih
         return float(x), float(y)
 
     # -- 工具表 --
@@ -424,7 +425,7 @@ class Tools:
         return {"text": "\n".join(lines) or "（空目录）"}
 
     def _t_screenshot(self, a):
-        scale = float(a.get("scale", 0.6))
+        scale = float(a.get("scale", 0.8))
         self.ui.hide_for_shot()
         try:
             rc, _, err = run(
@@ -444,7 +445,7 @@ class Tools:
         }
 
     def _t_click(self, a):
-        x, y = self._to_screen(int(a.get("x", 0)), int(a.get("y", 0)))
+        x, y = self._to_screen(float(a.get("x", 0)), float(a.get("y", 0)))
         parked = self.ui.park_panel(x, y)
         try:
             self.mouse.click(x, y, str(a.get("button", "left")),
@@ -455,7 +456,7 @@ class Tools:
         return {"text": f"已点击 ({int(x)}, {int(y)})"}
 
     def _t_move_mouse(self, a):
-        x, y = self._to_screen(int(a.get("x", 0)), int(a.get("y", 0)))
+        x, y = self._to_screen(float(a.get("x", 0)), float(a.get("y", 0)))
         self.mouse.move(x, y)
         return {"text": f"鼠标移到 ({int(x)}, {int(y)})"}
 
@@ -752,7 +753,7 @@ TOOLS = [
         "name": "screenshot",
         "description": "截取整个屏幕给自己看。之后 click/move_mouse 的坐标用截图图片像素。",
         "parameters": {"type": "object", "properties": {
-            "scale": {"type": "number", "description": "缩放，默认 0.6；要看小字/精确点击可临时用 0.8"},
+            "scale": {"type": "number", "description": "缩放，默认 0.8；看整页布局可用 0.6，越大小目标越准"},
         }},
     }},
     {"type": "function", "function": {
