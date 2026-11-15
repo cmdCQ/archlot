@@ -48,3 +48,15 @@ Mod+Shift+XF86TouchpadOff repeat=false { spawn "~/.local/bin/ai"; }
 ```
 
 不要写成 `Mod+Shift+F23`（内核看是 F23，但 xkb 层不是，不会触发）。
+
+---
+
+## 交接
+
+新接手请先读：
+
+- `CLAUDE.md` — 架构、约束、常用命令
+- `docs/HANDOFF.md` — 踩坑记录、用户偏好、待重构计划
+
+当前状态：功能可用，代码集中在 `archlot.py`（约 1650 行），
+下一步是引入 `policy.py` 统一“自动审查 + 思考强度”，再拆分 UI / agent。
