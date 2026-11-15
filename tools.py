@@ -513,6 +513,10 @@ class Tools:
             info = ui.panel_reset()
         else:
             return {"text": f"不支持的 action：{action}"}
+        if action in ("move", "resize", "set", "dock", "reset", "opacity"):
+            # 等 niri 的窗口动画走完，读回的位置才是最终值
+            time.sleep(0.28)
+            info = ui.panel_info()
         return {"text": (f"窗口 x={info['x']} y={info['y']} "
                          f"{info['width']}x{info['height']} "
                          f"屏幕 {info['screen_width']}x{info['screen_height']} "

@@ -169,7 +169,7 @@ class Archlot(Gtk.Application):
 
         self.msgbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
         self.msgbox.add_css_class("messages")
-        self.msgbox.set_valign(Gtk.Align.START)
+        self.msgbox.set_valign(Gtk.Align.END)
         self.scroll.set_child(self.msgbox)
 
         self._cancel = threading.Event()
@@ -288,7 +288,6 @@ class Archlot(Gtk.Application):
     def append_user(self, text):
         self._end_stream()
         self._tool_label = None
-        self.msgbox.set_valign(Gtk.Align.START)
         bubble = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         bubble.add_css_class("user-bubble")
         bubble.set_halign(Gtk.Align.END)
@@ -541,7 +540,14 @@ class Archlot(Gtk.Application):
         self._end_stream()
         self._clear_messages()
         self._tool_label = None
-        self.collapse()
+        # 清空后回到欢迎页，不要让欢迎内容跟着被删掉
+        self.msgbox.append(self.empty_state)
+        self.empty_state.set_visible(True)
+        adj = self.scroll.get_vadjustment()
+        if adj is not None:
+            adj.set_value(0)
+        if self.win is not None and self.win.get_visible():
+            self.entry.grab_focus()
 
     def collapse(self):
         self.hide()
