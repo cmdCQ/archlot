@@ -8,10 +8,12 @@ import tempfile
 from dataclasses import dataclass, fields
 
 APP_ID = "com.cqsomt.archlot"
+ARCHLOT_VERSION = "0.1.0"
 
 CONFIG_DIR = os.path.expanduser("~/.config/archlot")
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 GEOM_PATH = os.path.join(CONFIG_DIR, "window.json")
+APPEARANCE_PATH = os.path.join(CONFIG_DIR, "appearance.json")
 MEMORY_DIR = os.path.join(CONFIG_DIR, "memory")
 LOG_PATH = "/tmp/archlot-app.log"
 DEFAULT_WORKSPACE = os.path.expanduser("~/archlot-workspace")

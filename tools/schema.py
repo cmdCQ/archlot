@@ -124,10 +124,13 @@ TOOLS = [
     }},
     {"type": "function", "function": {
         "name": "appearance",
-        "description": "调整 Archlot 自己的外观（不是别的窗口）。action=info 查看；set 改单个字段：opacity 0.2-1.0、accent/background 十六进制色、radius 0-28、font_scale 0.85-1.3；blur/xray/noise 只写进 niri 规则，由 niri 实际渲染（需要 niri 26.04+）；preset 套用预设 default/midnight/warm/cyan/mono/rose；niri 生成配套的 niri window-rule；reset 恢复默认。",
+        "description": "调整 Archlot 自己的外观（不是别的窗口）。action=info 查看（含默认外观和已保存配置）；set 改单个字段：opacity 0.2-1.0、accent/background 十六进制色、radius 0-28、font_scale 0.85-1.3；blur/xray/noise 只写进 niri 规则，由 niri 实际渲染（需要 niri 26.04+）；preset 套用预设 default/midnight/warm/cyan/mono/rose；save 不带 name 把当前存成默认、带 name 存成命名配置；load 套用命名配置；restore 一键恢复默认；delete 删除命名配置；niri 生成配套的 niri window-rule；reset 恢复出厂值（不影响已保存的默认）。",
         "parameters": {"type": "object", "properties": {
             "action": {"type": "string",
-                       "enum": ["info", "set", "preset", "niri", "reset"]},
+                       "enum": ["info", "set", "preset", "save", "load",
+                                "restore", "delete", "niri", "reset"]},
+            "name": {"type": "string",
+                     "description": "命名配置名，最多 24 字；save 省略时保存为默认外观"},
             "opacity": {"type": "number"},
             "accent": {"type": "string", "description": "如 #b9a7f5"},
             "background": {"type": "string", "description": "如 #111116"},

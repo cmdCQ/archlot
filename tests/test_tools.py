@@ -17,9 +17,13 @@ class FakePanel:
 
     def __init__(self):
         self.state = dict(appearance.DEFAULTS)
+        self.default = dict(appearance.DEFAULTS)
+        self.profiles = {}
 
     def appearance_info(self):
         info = dict(self.state)
+        info["default"] = dict(self.default)
+        info["profiles"] = sorted(self.profiles)
         info["presets"] = sorted(appearance.PRESETS)
         return info
 
@@ -38,6 +42,40 @@ class FakePanel:
 
     def appearance_reset(self):
         return self.appearance_set(**appearance.DEFAULTS)
+
+    def appearance_save(self, name=None):
+        if name in (None, "") or str(name).strip().lower() == "default":
+            key = None
+        else:
+            key = appearance.clean_name(name)
+            if key is None:
+                return None
+        if key is None:
+            self.default = dict(self.state)
+        else:
+            self.profiles[key] = dict(self.state)
+        return self.appearance_info()
+
+    def appearance_load(self, name=None):
+        is_default = (name in (None, "")
+                      or str(name).strip().lower() == "default")
+        key = None if is_default else appearance.clean_name(name)
+        if is_default:
+            state = self.default
+        elif key is not None:
+            state = self.profiles.get(key)
+        else:
+            state = None
+        if state is None:
+            return None
+        return self.appearance_set(**state)
+
+    def appearance_delete(self, name):
+        key = appearance.clean_name(name)
+        if key is None or key not in self.profiles:
+            return None
+        del self.profiles[key]
+        return self.appearance_info()
 
     def appearance_niri(self):
         return appearance.niri_rule(self.state)
@@ -89,6 +127,46 @@ class AppearanceToolTest(unittest.TestCase):
         self.assertTrue(result.ok)
         self.assertEqual(self.panel.state["opacity"],
                          appearance.DEFAULTS["opacity"])
+
+    def test_save_default_and_restore(self):
+        desktop.appearance(self.tools, {"action": "set", "accent": "#112233"})
+        result = desktop.appearance(self.tools, {"action": "save"})
+        self.assertTrue(result.ok)
+        self.assertEqual(self.panel.default["accent"], "#112233")
+        self.panel.state["accent"] = "#ffffff"
+        result = desktop.appearance(self.tools, {"action": "restore"})
+        self.assertTrue(result.ok)
+        self.assertEqual(self.panel.state["accent"], "#112233")
+
+    def test_save_load_delete_named_profile(self):
+        desktop.appearance(self.tools,
+                           {"action": "set", "accent": "#00ff00"})
+        result = desktop.appearance(
+            self.tools, {"action": "save", "name": "work"})
+        self.assertTrue(result.ok)
+        self.assertIn("work", result.text)
+        desktop.appearance(self.tools,
+                           {"action": "set", "accent": "#123456"})
+        result = desktop.appearance(
+            self.tools, {"action": "load", "name": "work"})
+        self.assertTrue(result.ok)
+        self.assertEqual(self.panel.state["accent"], "#00ff00")
+        result = desktop.appearance(
+            self.tools, {"action": "delete", "name": "work"})
+        self.assertTrue(result.ok)
+        self.assertEqual(self.panel.profiles, {})
+
+    def test_missing_profile(self):
+        result = desktop.appearance(
+            self.tools, {"action": "load", "name": "nope"})
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error_kind, "not_found")
+
+    def test_bad_profile_name(self):
+        result = desktop.appearance(
+            self.tools, {"action": "save", "name": "x" * 40})
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error_kind, "bad_args")
 
 
 if __name__ == "__main__":

@@ -21,7 +21,8 @@ gi.require_version("Graphene", "1.0")
 from gi.repository import Gdk, GLib, Graphene, Gtk, Pango  # noqa: E402
 
 from core import system  # noqa: E402
-from core.config import APP_ID, GEOM_PATH, atomic_write_json  # noqa: E402
+from core.config import (APPEARANCE_PATH, APP_ID, GEOM_PATH,  # noqa: E402
+                         atomic_write_json)
 from core.contracts import ToolResult  # noqa: E402
 from . import appearance, markdown  # noqa: E402
 from .chat import TOOL_LABELS, tool_preview  # noqa: E402
@@ -46,6 +47,8 @@ class Panel:
         self._ui_gen = 0
         self._screen = tuple(int(v) for v in system.screen_size())
         self.geom = self._load_geom(self._screen)
+        self._appearance_store = appearance.ensure_store(
+            APPEARANCE_PATH, self._appearance_state())
         self._min_size = (0, 0)
 
         self._busy = False
@@ -1316,6 +1319,9 @@ class Panel:
 
     def appearance_info(self):
         info = self._appearance_state()
+        with self._lock:
+            info["default"] = dict(self._appearance_store["default"])
+            info["profiles"] = sorted(self._appearance_store["profiles"])
         info["presets"] = sorted(appearance.PRESETS)
         return info
 
@@ -1339,6 +1345,60 @@ class Panel:
 
     def appearance_reset(self):
         return self.appearance_set(**appearance.DEFAULTS)
+
+    def appearance_save(self, name=None):
+        """不带 name：把当前外观存成默认；带 name：存成命名配置。"""
+        if name in (None, "") or str(name).strip().lower() == "default":
+            key = None
+        else:
+            key = appearance.clean_name(name)
+            if key is None:
+                return None
+        state = self._appearance_state()
+        with self._lock:
+            if key is None:
+                self._appearance_store["default"] = dict(state)
+            else:
+                self._appearance_store["profiles"][key] = dict(state)
+            store = self._appearance_store
+        try:
+            appearance.save_store(APPEARANCE_PATH, store)
+        except OSError as exc:
+            log.warning("外观配置保存失败：%s", exc)
+            return None
+        return self.appearance_info()
+
+    def appearance_load(self, name=None):
+        """不带 name / name=default：回到默认；否则套用命名配置。"""
+        is_default = (name in (None, "")
+                      or str(name).strip().lower() == "default")
+        key = None if is_default else appearance.clean_name(name)
+        with self._lock:
+            if is_default:
+                state = dict(self._appearance_store["default"])
+            elif key is not None:
+                state = self._appearance_store["profiles"].get(key)
+            else:
+                state = None
+        if state is None:
+            return None
+        return self.appearance_set(**state)
+
+    def appearance_delete(self, name):
+        key = appearance.clean_name(name)
+        if key is None:
+            return None
+        with self._lock:
+            if key not in self._appearance_store["profiles"]:
+                return None
+            del self._appearance_store["profiles"][key]
+            store = self._appearance_store
+        try:
+            appearance.save_store(APPEARANCE_PATH, store)
+        except OSError as exc:
+            log.warning("外观配置删除失败：%s", exc)
+            return None
+        return self.appearance_info()
 
     def appearance_niri(self):
         return appearance.niri_rule(self._appearance_state())

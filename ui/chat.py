@@ -29,8 +29,8 @@ def tool_preview(name, args):
             return str(args.get("action", ""))
         if name == "appearance":
             action = str(args.get("action", ""))
-            preset = args.get("preset")
-            return f"{action} {preset}" if preset else action
+            extra = args.get("name") or args.get("preset")
+            return f"{action} {extra}" if extra else action
         if name == "focus_window":
             return f"窗口 {args.get('id')}"
         if name == "memory":

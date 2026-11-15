@@ -1,3 +1,6 @@
+import json
+import os
+import tempfile
 import unittest
 
 from ui import appearance
@@ -53,6 +56,54 @@ class CssTest(unittest.TestCase):
             css = appearance.css(preset)
             self.assertIn(".root {", css)
             self.assertTrue(css.strip().endswith("}"))
+
+
+class StoreTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.path = os.path.join(self.tmp.name, "appearance.json")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_missing_store_uses_fallback(self):
+        store = appearance.load_store(self.path, {"accent": "#abcdef"})
+        self.assertEqual(store["default"]["accent"], "#abcdef")
+        self.assertEqual(store["profiles"], {})
+
+    def test_roundtrip_default_and_profiles(self):
+        store = appearance.empty_store(appearance.PRESETS["cyan"])
+        store["profiles"]["work"] = appearance.PRESETS["mono"]
+        appearance.save_store(self.path, store)
+        loaded = appearance.load_store(self.path)
+        self.assertEqual(loaded["default"], appearance.normalize(
+            appearance.PRESETS["cyan"]))
+        self.assertEqual(loaded["profiles"]["work"], appearance.normalize(
+            appearance.PRESETS["mono"]))
+
+    def test_bad_file_and_bad_names_are_ignored(self):
+        with open(self.path, "w") as f:
+            f.write("{not json")
+        self.assertEqual(appearance.load_store(self.path)["profiles"], {})
+        store = appearance.empty_store()
+        store["profiles"]["x" * 99] = appearance.PRESETS["rose"]
+        store["profiles"]["default"] = appearance.PRESETS["rose"]
+        cleaned = appearance.save_store(self.path, store)
+        self.assertEqual(cleaned["profiles"], {})
+
+    def test_ensure_store_pins_first_default(self):
+        appearance.ensure_store(self.path, {"accent": "#101010"})
+        self.assertTrue(os.path.exists(self.path))
+        with open(self.path) as f:
+            raw = json.load(f)
+        self.assertEqual(raw["default"]["accent"], "#101010")
+
+    def test_clean_name(self):
+        self.assertEqual(appearance.clean_name("  work  "), "work")
+        self.assertEqual(appearance.clean_name("夜间"), "夜间")
+        self.assertIsNone(appearance.clean_name(""))
+        self.assertIsNone(appearance.clean_name("default"))
+        self.assertIsNone(appearance.clean_name("a" * 25))
 
 
 class NiriRuleTest(unittest.TestCase):

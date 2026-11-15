@@ -312,6 +312,27 @@ def appearance(tools, a) -> ToolResult:
                   meta={"kind": "observe", "effect": "confirmed"})
     elif action == "reset":
         info = ui.appearance_reset()
+    elif action == "restore":
+        info = ui.appearance_load(None)
+        if info is None:
+            return fail("恢复默认外观失败。", "exception")
+    elif action == "save":
+        info = ui.appearance_save(a.get("name"))
+        if info is None:
+            return fail("配置名无效：1-24 个字，不能换行，"
+                        "不能叫 default。", "bad_args")
+    elif action == "load":
+        info = ui.appearance_load(a.get("name"))
+        if info is None:
+            name = a.get("name")
+            return fail(f"没有这个外观配置：{name}", "not_found")
+    elif action == "delete":
+        name = a.get("name")
+        if not str(name or "").strip():
+            return fail("delete 需要 name。", "bad_args")
+        info = ui.appearance_delete(name)
+        if info is None:
+            return fail(f"没有这个外观配置：{name}", "not_found")
     elif action == "preset":
         name = str(a.get("preset", "default")).strip().lower()
         info = ui.appearance_preset(name)
@@ -330,10 +351,11 @@ def appearance(tools, a) -> ToolResult:
         return fail(f"不支持的 action：{action}", "bad_args")
 
     blur = "开" if info["blur"] else "关"
+    profiles = ",".join(info.get("profiles") or []) or "无"
     return ok(f"外观 透明度={info['opacity']} 主色={info['accent']} "
               f"背景={info['background']} 圆角={info['radius']}px "
               f"字号={info['font_scale']}x 模糊(niri)={blur} "
               f"xray={info['xray']} 噪点={info['noise']} "
-              f"预设={','.join(info['presets'])}",
-              meta={"kind": "act" if action in ("set", "preset", "reset")
-                    else "observe", "effect": "confirmed"})
+              f"预设={','.join(info['presets'])} 已保存={profiles}",
+              meta={"kind": "observe" if action in ("info",)
+                    else "act", "effect": "confirmed"})

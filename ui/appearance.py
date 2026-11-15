@@ -6,10 +6,16 @@
 
 from __future__ import annotations
 
+import json
+import os
 import re
+
+from core.config import atomic_write_json
 
 FIELDS = ("opacity", "accent", "background", "radius", "font_scale",
           "blur", "xray", "noise")
+
+PROFILE_NAME_MAX = 24
 
 DEFAULTS = {
     "opacity": 0.80,
@@ -121,6 +127,75 @@ def normalize(state) -> dict:
         noise = DEFAULTS["noise"]
     out["noise"] = round(max(0.0, min(0.1, noise)), 3)
     return out
+
+
+def clean_name(name):
+    """配置名：去空白、限长、不允许换行；default 保留给默认外观。"""
+    if not isinstance(name, str):
+        return None
+    text = name.strip()
+    if not text or len(text) > PROFILE_NAME_MAX:
+        return None
+    if any(ch in text for ch in "\r\n\t"):
+        return None
+    if text.lower() == "default":
+        return None
+    return text
+
+
+def empty_store(fallback=None):
+    return {"default": normalize(fallback or DEFAULTS), "profiles": {}}
+
+
+def load_store(path, fallback=None):
+    """读默认外观和命名配置；坏文件按空仓库处理。"""
+    try:
+        with open(path, encoding="utf-8") as f:
+            raw = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return empty_store(fallback)
+    if not isinstance(raw, dict):
+        return empty_store(fallback)
+    default = raw.get("default")
+    if not isinstance(default, dict):
+        default = fallback if isinstance(fallback, dict) else DEFAULTS
+    profiles = {}
+    saved = raw.get("profiles")
+    if isinstance(saved, dict):
+        for name, state in saved.items():
+            key = clean_name(name)
+            if key and isinstance(state, dict):
+                profiles[key] = normalize(state)
+    return {"default": normalize(default), "profiles": profiles}
+
+
+def save_store(path, store):
+    """写回时重新校验，避免手改文件带进坏值。"""
+    store = store or {}
+    raw = store.get("profiles")
+    profiles = {}
+    if isinstance(raw, dict):
+        for name, state in raw.items():
+            key = clean_name(name)
+            if key and isinstance(state, dict):
+                profiles[key] = normalize(state)
+    clean = {
+        "default": normalize(store.get("default") or DEFAULTS),
+        "profiles": profiles,
+    }
+    atomic_write_json(path, clean)
+    return clean
+
+
+def ensure_store(path, fallback=None):
+    """首次启动时把当前外观固定成默认，之后 restore 才有东西可回。"""
+    store = load_store(path, fallback)
+    if not os.path.exists(path):
+        try:
+            save_store(path, store)
+        except OSError:
+            pass
+    return store
 
 
 def _rgb(color):
