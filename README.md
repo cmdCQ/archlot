@@ -116,7 +116,7 @@ cd archlot
 - 把程序装到 `~/.local/share/archlot`
 - 在 `~/.local/bin` 放 `archlot` 和 `archlot-setup`
 - 添加桌面入口和图标
-- 询问是否立即打开面板里的图形配置向导（`--no-setup` 可跳过）
+- 询问是否立即打开面板（首次运行显示教程，之后是设置；`--no-setup` 可跳过）
 
 卸载只会删除自己装的文件：
 
@@ -143,10 +143,10 @@ bin/archlot --daemon     # 只驻留，不显示
 
 ## 第一次配置
 
-第一次启动会自动在 Archlot 面板里打开配置向导；装好以后也可以随时运行：
+第一次启动会自动在 Archlot 面板里打开一次性的上手向导；装好以后也可以随时运行：
 
 ```bash
-archlot --setup          # 已安装
+archlot --setup          # 已安装：首次是教程，之后是设置
 bin/archlot --setup      # 直接跑源码
 ```
 
@@ -161,7 +161,8 @@ bin/archlot --setup      # 直接跑源码
    写入前自动备份 `config.kdl`
 5. **完成**：直接开始用
 
-之后点标题栏右侧的 **⚙** 可以随时重新打开向导。没有图形会话时，
+完成向导后，点标题栏右侧的 **⚙** 或再次运行 `--setup` 打开的是**设置面板**：
+模型 / 外观 / 快捷键三个页签，直接改参数，不会再播放教程。没有图形会话时，
 终端向导仍可作为备用：
 
 ```bash
@@ -174,7 +175,8 @@ bin/archlot-setup --only hotkey
 
 ## 配置模型
 
-运行 `archlot --setup`（源码目录 `bin/archlot --setup`）会引导你填好。也可以手动改
+首次运行 `archlot --setup`（源码目录 `bin/archlot --setup`）会引导你填好；
+之后它打开的是设置面板。也可以手动改
 `~/.config/archlot/config.json`（OpenAI 兼容接口，默认接 DeepSeek）：
 
 ```bash
@@ -214,7 +216,7 @@ chmod 600 ~/.config/archlot/config.json
 | `Ctrl+L` | **清空上下文**：重置本轮会话和消息列表，长期记忆保留 |
 | `Escape` | 有任务在跑就取消；有确认框就拒绝；否则收起面板 |
 | `bin/archlot --toggle` | 唤出 / 收起 |
-| `bin/archlot --setup` | 打开面板内配置向导 |
+| `bin/archlot --setup` | 打开设置面板；首次运行先走教程 |
 | `bin/archlot --daemon` | 只驻留，不显示 |
 
 面板可拖标题栏移动。想让它自己改位置、尺寸、透明度，直接说
@@ -232,7 +234,7 @@ chmod 600 ~/.config/archlot/config.json
 
 ## 用 Copilot 键召唤
 
-向导第 4 步（或 ⚙ → 快捷键）可以自动生成并写入下面这段（写入前会备份 niri 配置）。
+首次向导的快捷键步骤（或 ⚙ → 快捷键）可以自动生成并写入下面这段（写入前会备份 niri 配置）。
 手动配置时：很多笔记本上的 Copilot 键在 Wayland 里报告为 `XF86TouchpadOff`。
 niri 按基础层符号匹配，这台机器上实测绑定写成
 `Mod+Shift+XF86TouchpadOff`，指向一个包装脚本：

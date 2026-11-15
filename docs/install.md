@@ -27,11 +27,12 @@ cd archlot
 ./install.sh --prefix ~/apps
 ```
 
-装完会询问是否打开面板里的图形配置向导。跳过用 `--no-setup`，之后随时运行
+装完会询问是否打开面板。跳过用 `--no-setup`，之后随时运行
 `archlot --setup` 或点标题栏右侧的 ⚙。
 
-向导开头是快速上手（功能展示、基本按键、外观说明），之后依次配置模型、
-外观（实时预览，可存默认和命名配置）和 Copilot 键。没有图形会话时，
+首次运行会显示一次性的上手教程（功能展示、基本按键、外观说明），之后依次
+配置模型、外观（实时预览，可存默认和命名配置）和 Copilot 键。完成后再打开
+就是设置面板：模型 / 外观 / 快捷键三个页签，不会重复教程。没有图形会话时，
 终端向导 `archlot-setup` 仍可用；源码目录里用 `bin/archlot-setup`。
 
 ### 装了哪些文件
@@ -86,7 +87,7 @@ makepkg -si
 
 程序装到 `/usr/share/archlot`，`/usr/bin/archlot` 和
 `/usr/bin/archlot-setup` 是指向它的软链接。卸载用 `pacman -R archlot-git`。
-配置仍由图形向导（`archlot --setup`）或终端向导写入用户目录。
+配置仍由图形界面（`archlot --setup`：首次教程，之后设置）或终端向导写入用户目录。
 
 ## 直接跑源码
 
@@ -94,7 +95,7 @@ makepkg -si
 
 ```bash
 bin/archlot --toggle
-bin/archlot --setup     # 面板内图形向导
+bin/archlot --setup     # 首次教程；之后打开设置面板
 bin/archlot-setup       # 终端备用向导
 ```
 

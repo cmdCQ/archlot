@@ -227,9 +227,9 @@ class Panel:
         self.spinner.set_visible(False)
         self.gear = Gtk.Button(label="⚙")
         self.gear.add_css_class("gear")
-        self.gear.set_tooltip_text("设置、教程与外观")
+        self.gear.set_tooltip_text("设置模型、外观与快捷键")
         self.gear.set_valign(Gtk.Align.CENTER)
-        self.gear.connect("clicked", lambda *_: self.open_setup())
+        self.gear.connect("clicked", lambda *_: self.open_settings())
         self.header.append(brand)
         self.header.append(self.thinking_dot)
         self.header.append(self.status)
@@ -937,15 +937,31 @@ class Panel:
         self._apply_chrome()
 
     def open_setup(self, page=0):
-        """打开面板内的图形配置向导；不另开窗口。"""
+        """首次运行打开教程向导；配置完成后打开设置面板。"""
+        if self.cfg.onboarding_done:
+            self.open_settings()
+        else:
+            self.open_onboarding(page)
+
+    def open_onboarding(self, page=0):
+        """打开面板内的一次性向导：教程 → 模型 → 外观 → 快捷键 → 完成。"""
         self._setup_active = True
         self.onboarding.start(page=page)
+        self._show_setup_page()
+
+    def open_settings(self, tab=None):
+        """打开设置面板：模型 / 外观 / 快捷键三个页签，不再播放教程。"""
+        self._setup_active = True
+        self.onboarding.start_settings(tab)
+        self._show_setup_page()
+
+    def _show_setup_page(self):
         self.stack.set_visible_child_name("setup")
+        self.onboarding.focus()
         if not self.win.get_visible():
             self.show()
         else:
             self.onboarding.refresh()
-            self.onboarding.focus()
 
     def close_setup(self, mark_done=True):
         """离开向导回到对话。mark_done=False 只收起，不记完成。"""

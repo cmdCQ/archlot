@@ -448,6 +448,37 @@ button.gear:hover {
     letter-spacing: 3px;
 }
 
+.setup-tabs {
+    margin: 4px 16px 8px 16px;
+    padding: 3px;
+    border-radius: 9px;
+    background-color: rgba(255, 255, 255, 0.024);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+button.setup-tab {
+    background: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+    border-radius: 7px;
+    color: rgba(190, 184, 202, 0.58);
+    padding: 3px 8px;
+    font-size: 8.5pt;
+    transition-property: color, background-color;
+    transition-duration: 130ms;
+}
+
+button.setup-tab:hover {
+    color: rgba(240, 237, 246, 0.82);
+    background-color: rgba(255, 255, 255, 0.04);
+}
+
+button.setup-tab:checked {
+    color: rgba(242, 239, 248, 0.94);
+    background-color: rgba(185, 167, 245, 0.12);
+}
+
 button.setup-close {
     background: transparent;
     background-image: none;

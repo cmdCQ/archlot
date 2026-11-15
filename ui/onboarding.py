@@ -56,6 +56,8 @@ class Onboarding:
     def __init__(self, panel):
         self.panel = panel
         self.step = 0
+        self.mode = "onboarding"
+        self.tab = "model"
         self._syncing = False
         self._flush_timer = 0
         self._pending = {}
@@ -79,8 +81,8 @@ class Onboarding:
         self.step_label.set_hexpand(True)
         close = Gtk.Button(label="×")
         close.add_css_class("setup-close")
-        close.set_tooltip_text("跳过 / 关闭设置")
-        close.connect("clicked", lambda *_: self.panel.close_setup())
+        close.set_tooltip_text("关闭")
+        close.connect("clicked", lambda *_: self._close())
         header.append(brand)
         header.append(self.step_label)
         header.append(close)
@@ -90,6 +92,21 @@ class Onboarding:
         header.add_controller(press)
         header.set_cursor_from_name("grab")
         root.append(header)
+
+        self.tabs = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        self.tabs.add_css_class("setup-tabs")
+        self.tabs.set_visible(False)
+        self.tab_buttons = {}
+        for name, text in (("model", "模型"), ("appearance", "外观"),
+                           ("hotkey", "快捷键")):
+            button = Gtk.ToggleButton(label=text)
+            button.add_css_class("setup-tab")
+            button.set_hexpand(True)
+            button.connect("clicked",
+                           lambda _b, key=name: self.show_tab(key))
+            self.tab_buttons[name] = button
+            self.tabs.append(button)
+        root.append(self.tabs)
 
         self.inner = Gtk.Stack()
         self.inner.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
@@ -284,6 +301,15 @@ class Onboarding:
         box.append(self._field("工作区", self.workspace_entry))
         self.model_status = _label("", "setup-status")
         box.append(self.model_status)
+        self.model_save = Gtk.Button(label="保存模型配置")
+        self.model_save.add_css_class("setup-next")
+        self.model_save.set_halign(Gtk.Align.START)
+        self.model_save.set_visible(False)
+        self.model_save.connect("clicked", lambda *_: self._save_model())
+        box.append(self.model_save)
+        for entry in (self.base_entry, self.key_entry, self.model_entry,
+                      self.workspace_entry):
+            entry.connect("activate", self._model_activate)
         saved = self._card()
         saved.append(_label("保存在哪", "setup-card-title"))
         saved.append(_label(
@@ -323,6 +349,10 @@ class Onboarding:
                 "已保存地址和模型，但还没有 key。填好 key 后才能对话。",
                 error=True)
         return True
+
+    def _model_activate(self, _entry):
+        if self.mode == "settings":
+            self._save_model()
 
     # ---------------------------------------------------------------- 外观
 
@@ -845,13 +875,45 @@ class Onboarding:
     # ---------------------------------------------------------------- 导航
 
     def start(self, page=0):
+        self.mode = "onboarding"
+        self.tabs.set_visible(False)
+        self.model_save.set_visible(False)
+        self.dots.set_visible(True)
         self.step = max(0, min(len(STEP_NAMES) - 1, int(page or 0)))
         self.inner.set_visible_child_name(STEP_NAMES[self.step])
         self.refresh()
         self.focus()
         GLib.idle_add(self._scroll_top, self.step)
 
+    def start_settings(self, tab=None):
+        """设置模式：没有教程和步骤，只有模型 / 外观 / 快捷键三个页签。"""
+        self.mode = "settings"
+        self.tabs.set_visible(True)
+        self.model_save.set_visible(True)
+        self.dots.set_visible(False)
+        self.back_btn.set_visible(False)
+        self.next_btn.set_label("完成")
+        self.show_tab(tab or self.tab or "model")
+
+    def show_tab(self, name):
+        if name not in ("model", "appearance", "hotkey"):
+            name = "model"
+        self.tab = name
+        self.step = {"model": 1, "appearance": 2, "hotkey": 3}[name]
+        self.inner.set_visible_child_name(name)
+        self.refresh()
+        self._scroll_top(self.step)
+
     def refresh(self):
+        if self.mode == "settings":
+            if self.tab == "model":
+                self._refresh_model()
+            elif self.tab == "appearance":
+                self._sync_appearance()
+            elif self.tab == "hotkey":
+                self._refresh_hotkey()
+            self._update_nav()
+            return
         if self.step == 1:
             self._refresh_model()
         elif self.step == 2:
@@ -863,6 +925,17 @@ class Onboarding:
         self._update_nav()
 
     def _update_nav(self):
+        if self.mode == "settings":
+            self.step_label.set_text("设置")
+            self.tabs.set_visible(True)
+            self.dots.set_visible(False)
+            self.back_btn.set_visible(False)
+            self.next_btn.set_label("完成")
+            for name, button in self.tab_buttons.items():
+                button.set_active(name == self.tab)
+            return
+        self.tabs.set_visible(False)
+        self.dots.set_visible(True)
         self.step_label.set_text(f"{self.step + 1} / {len(STEP_NAMES)}")
         self.dots.set_text(" ".join(
             "●" if index <= self.step else "○"
@@ -874,6 +947,10 @@ class Onboarding:
             self.next_btn.set_label("开始配置")
 
     def go(self, step):
+        if self.mode == "settings":
+            self.show_tab(("model", "model", "appearance", "hotkey")[step]
+                          if 0 < step <= 3 else "model")
+            return
         self.step = max(0, min(len(STEP_NAMES) - 1, int(step)))
         self.inner.set_visible_child_name(STEP_NAMES[self.step])
         self.refresh()
@@ -888,6 +965,9 @@ class Onboarding:
         return False
 
     def next(self):
+        if self.mode == "settings":
+            self.panel.close_setup(mark_done=False)
+            return
         if self.step == 1 and not self._save_model():
             return
         if self.step == 2:
@@ -898,10 +978,20 @@ class Onboarding:
         self.go(self.step + 1)
 
     def back(self):
+        if self.mode == "settings":
+            return
         if self.step > 0:
             self.go(self.step - 1)
 
+    def _close(self):
+        self.panel.close_setup(mark_done=self.mode != "settings")
+
     def on_key(self, keyval, state):
+        if self.mode == "settings":
+            if keyval == Gdk.KEY_Escape:
+                self.panel.close_setup(mark_done=False)
+                return True
+            return False
         if keyval == Gdk.KEY_Escape:
             if self.step > 0:
                 self.back()
@@ -918,6 +1008,11 @@ class Onboarding:
         return False
 
     def focus(self):
+        if self.mode == "settings":
+            button = self.tab_buttons.get(self.tab)
+            if button is not None:
+                button.grab_focus()
+            return
         if self.step == 1:
             self.base_entry.grab_focus()
         elif self.step == 3:

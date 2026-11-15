@@ -102,7 +102,7 @@ fi
 
 echo "已安装：$DATA_DIR"
 echo "命令：$PREFIX/bin/archlot [--setup|--toggle|--daemon]"
-echo "图形向导：$PREFIX/bin/archlot --setup"
+echo "图形设置（首次为教程）：$PREFIX/bin/archlot --setup"
 echo "终端备用向导：$PREFIX/bin/archlot-setup"
 echo "卸载：$DATA_DIR/uninstall.sh [--purge]"
 
@@ -113,7 +113,7 @@ fi
 
 if [ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]; then
     if [ -t 0 ] && [ -t 1 ]; then
-        printf '现在打开图形配置向导（模型 / 外观 / 快捷键）？[Y/n] '
+        printf '现在打开 Archlot 面板（首次为教程，之后为设置）？[Y/n] '
         read -r answer || answer=""
         case "$answer" in
             [Nn]*) exit 0 ;;
@@ -123,7 +123,7 @@ if [ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]; then
         else
             nohup "$PREFIX/bin/archlot" --setup >/dev/null 2>&1 </dev/null &
         fi
-        echo "已打开 Archlot 面板里的配置向导。"
+        echo "已打开 Archlot 面板：首次运行会显示教程，完成后为设置。"
     else
         echo "非交互安装。之后运行：$PREFIX/bin/archlot --setup"
     fi

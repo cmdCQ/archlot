@@ -115,7 +115,7 @@ cd archlot
 
 The installer puts the app in `~/.local/share/archlot`, creates `archlot` and
 `archlot-setup` in `~/.local/bin`, adds a desktop entry and icon, then offers to open
-the graphical setup wizard inside Archlot (`--no-setup` skips it).
+Archlot (`--no-setup` skips it). The first run shows onboarding; later runs show settings.
 
 Uninstall removes only what it installed:
 
@@ -142,8 +142,8 @@ bin/archlot --daemon     # stay resident without showing
 
 ## First-run setup
 
-The first launch opens the setup wizard inside the Archlot panel. You can reopen it
-at any time:
+The first launch opens a one-time onboarding wizard inside the Archlot panel.
+After that, the same command opens the settings panel:
 
 ```bash
 archlot --setup          # installed
@@ -164,7 +164,9 @@ dialog:
    declare Archlot and backs up `config.kdl` before writing
 5. **Done**: start using it
 
-Click the **⚙** at the right of the header to reopen the wizard. On a headless
+Once onboarding is done, the **⚙** at the right of the header (or `--setup` again)
+opens the **settings panel** — model / appearance / hotkey tabs, no tutorial replay.
+On a headless
 session, the terminal wizard remains available as a fallback:
 
 ```bash
@@ -177,7 +179,8 @@ bin/archlot-setup --only hotkey
 
 ## Model configuration
 
-`archlot --setup` (or `bin/archlot --setup` from the checkout) walks you through it. You can also edit
+The first `archlot --setup` (or `bin/archlot --setup` from the checkout) walks you
+through it; later runs open the settings panel. You can also edit
 `~/.config/archlot/config.json` by hand (any OpenAI-compatible endpoint; DeepSeek
 by default):
 
@@ -218,7 +221,7 @@ Restart Archlot after editing. The key stays on your machine; only model request
 | `Ctrl+L` | **Clear the context**: resets the conversation and messages; long-term memory is kept |
 | `Escape` | Cancel a running task, reject a confirmation dialog, or hide the panel |
 | `bin/archlot --toggle` | Show / hide |
-| `bin/archlot --setup` | Open the in-panel setup wizard |
+| `bin/archlot --setup` | Open settings (first run: onboarding) |
 | `bin/archlot --daemon` | Stay resident without showing |
 
 Drag the header to move the panel. To let Archlot change itself, just ask —
@@ -237,8 +240,8 @@ Defaults and profiles live in `~/.config/archlot/appearance.json`.
 
 ## Summon it with the Copilot key
 
-The setup wizard can generate and write this for you (it backs up the niri
-config first). To do it by hand: on many laptops the Copilot key reports as
+The onboarding hotkey step (or ⚙ → Hotkey) can generate and write this for you
+(it backs up the niri config first). To do it by hand: on many laptops the Copilot key reports as
 `XF86TouchpadOff` under Wayland. niri matches the base-layer symbol, so bind
 `Mod+Shift+XF86TouchpadOff` to a small wrapper:
 

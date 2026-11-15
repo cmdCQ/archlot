@@ -4,7 +4,7 @@
 
 仓库：`~/projects/archlot`，主分支 `main`。
 运行：`bin/archlot --toggle`。日志：`/tmp/archlot-app.log`。
-安装：`./install.sh`；图形向导：`bin/archlot --setup`；卸载：`./uninstall.sh`。
+安装：`./install.sh`；图形设置 / 首次教程：`bin/archlot --setup`；卸载：`./uninstall.sh`。
 
 ---
 
@@ -53,10 +53,12 @@
 - `panel(action="opacity", opacity=1.0)` 设的是这个 alpha；1.0 完全不透明
 - `win.set_opacity` 只用于淡出动画，不要混用
 
-### 3.4 图形配置向导
+### 3.4 图形配置与设置
 - `ui/onboarding.py`，作为 `Gtk.Stack` 的 setup 页嵌在同一个面板里，不另开窗口。
-- 首次启动（`config.json` 没有 `onboarding_done`）或 `--setup` 打开；标题栏 ⚙ 随时重开。
+- 首次启动（`config.json` 没有 `onboarding_done`）自动打开一次性向导。
 - 教程 → 模型 → 外观（预设/滑杆实时预览，保存默认/命名配置）→ Copilot 键 → 完成。
+- 完成后的 ⚙ 与 `--setup` 打开设置面板：模型 / 外观 / 快捷键页签，无教程和步骤导航；
+  模型页有“保存模型配置”，关闭用 `close_setup(mark_done=False)`。
 - 模型写 `config.json`（600）并更新运行中的 `Config`；快捷键复用 `core/setup.py`，
   写入前备份 `config.kdl`，已有 app-id 时只显示片段。
 - 终端 `bin/archlot-setup` 保留作无图形会话备用。

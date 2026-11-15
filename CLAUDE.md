@@ -7,7 +7,7 @@
 ```bash
 bin/archlot --toggle      # 唤出 / 收起
 bin/archlot               # 显示
-bin/archlot --setup       # 面板内图形配置向导（教程 / 模型 / 外观 / 快捷键）
+bin/archlot --setup       # 首次打开教程向导；之后打开设置（模型 / 外观 / 快捷键）
 bin/archlot --daemon      # 只驻留，不显示
 
 ~/.config/archlot/config.json       # 模型配置
@@ -75,9 +75,10 @@ ui/               panel / onboarding / chat / markdown / sound
 ## 视觉
 
 - 右侧竖栏，默认 380×880，贴右居中，可拖标题栏移动
-- 首次启动 / `--setup` / 标题栏 ⚙ 打开面板内向导（`ui/onboarding.py`）：
+- 首次启动自动打开一次性的面板内向导（`ui/onboarding.py`）：
   教程 → 模型 → 外观实时预览 → Copilot 键 → 完成；完成状态存
-  `config.json` 的 `onboarding_done`
+  `config.json` 的 `onboarding_done`。完成后再点标题栏 ⚙ 或 `--setup`
+  打开的是设置面板（模型 / 外观 / 快捷键页签），不再播放教程
 - 默认背景 alpha 0.8，`panel(opacity=...)` 或 `appearance(opacity=...)` 可调
 - 外观状态存在 `window.json` 的 `opacity accent background radius font_scale
   blur xray noise` 字段；默认外观和命名配置存在 `appearance.json`

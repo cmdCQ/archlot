@@ -261,6 +261,8 @@ def css(state) -> str:
         f"border-color: {_rgba(accent, 0.28)}; color: {_rgba(accent, 0.95)}; }}",
         ("button.setup-next:hover { background-color: %s; border-color: %s; }"
          % (_rgba(accent, 0.22), _rgba(accent, 0.44))),
+        f"button.setup-tab:checked {{ background-color: {_rgba(accent, 0.12)}; "
+        f"color: {_rgba(accent, 0.92)}; }}",
         f"button.setup-toggle:checked {{ background-color: {_rgba(accent, 0.16)}; "
         f"border-color: {_rgba(accent, 0.36)}; }}",
         f"button.preset.active {{ border-color: {_rgba(accent, 0.46)}; "
