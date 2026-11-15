@@ -27,8 +27,8 @@ class Config:
     workspace: str = DEFAULT_WORKSPACE
     sound_effects: bool = True
     confirm_mode: str = "auto"      # auto | strict
-    max_steps: int = 24
-    max_turn_seconds: float = 240.0
+    max_steps: int = 600
+    max_turn_seconds: float = 600.0
     max_tool_seconds: int = 120
 
     @classmethod
