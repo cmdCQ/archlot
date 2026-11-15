@@ -90,40 +90,84 @@ ui/               唯一允许 import GTK 的地方
 依赖只能向下：`archlot.py → agent / tools / ui → core`。
 `agent/`、`tools/`、`ui/` 互不 import。
 
-## 快速开始
+## 安装
 
 Archlot 在 **Arch Linux + niri（Wayland）** 上开发和测试。
 其他 Wayland 合成器可能可用，但 niri 是当前验证过的目标。
 
 ```bash
-# 1. 系统依赖
+# 系统依赖
 sudo pacman -S --needed python-gobject gtk4 at-spi2-core grim wtype wl-clipboard ffmpeg
 
-# 2. 给虚拟鼠标 /dev/uinput 权限
+# 虚拟鼠标需要 /dev/uinput 权限，改完重新登录
 sudo usermod -aG input "$USER"
-# 改完重新登录
+```
 
-# 3. 克隆并配置
+用户级安装，不需要 sudo：
+
+```bash
 git clone https://github.com/cmdCQ/archlot.git
 cd archlot
-mkdir -p ~/.config/archlot
-cp config.example.json ~/.config/archlot/config.json
-chmod 600 ~/.config/archlot/config.json
-# 把 DeepSeek key 填进 api_key，或者 export DEEPSEEK_API_KEY
+./install.sh
+```
 
-# 4. 运行
+安装脚本会：
+
+- 把程序装到 `~/.local/share/archlot`
+- 在 `~/.local/bin` 放 `archlot` 和 `archlot-setup`
+- 添加桌面入口和图标
+- 询问是否立即运行配置向导（`--no-setup` 可跳过）
+
+卸载只会删除自己装的文件：
+
+```bash
+./uninstall.sh          # 保留配置和记忆
+./uninstall.sh --purge  # 连配置、记忆、日志一起删
+```
+
+想用 Arch 包：
+
+```bash
+cd packaging && makepkg -si   # archlot-git
+```
+
+安装路径、更新方式和排错见 [`docs/install.md`](docs/install.md)。
+
+不用安装脚本也可以直接在仓库里跑：
+
+```bash
 bin/archlot              # 显示面板
 bin/archlot --toggle     # 显示 / 收起
 bin/archlot --daemon     # 只驻留，不显示
 ```
 
-绑到快捷键（niri 示例）：
+## 第一次配置
 
-```kdl
-binds {
-    Mod+Space repeat=false { spawn "~/projects/archlot/bin/archlot" "--toggle"; }
-}
+```bash
+archlot-setup
 ```
+
+向导会先显示一页**快速上手**：Archlot 能做什么、基本按键、以及外观怎么调。
+之后分三步，全程在终端里完成，不弹窗：
+
+1. **模型**：API 地址、key、模型名、工作区；写入
+   `~/.config/archlot/config.json`（权限 600）
+2. **默认外观**：带色块预览，从预设里挑一个存成默认外观；也可以直接说
+   “透明一点”“换个青色”来细调
+3. **快捷键**：生成 Copilot 键的 niri 配置；检测到已有 Archlot 规则时不会重复写，
+   写入前会备份 `config.kdl`
+
+可以反复运行，回车保留现有值；只看教程或只改其中一项：
+
+```bash
+archlot-setup --only tutorial    # 随时重看快速上手
+archlot-setup --only model
+archlot-setup --only appearance
+archlot-setup --only hotkey
+archlot-setup --no-tutorial      # 跳过开头教程
+```
+
+在源码目录里用 `bin/archlot-setup`。
 
 > **可访问性说明：** 语义模式依赖 AT-SPI。如果会话里
 > `org.a11y.Status.IsEnabled=false`，Archlot 会明确告诉你，并退回截图模式。
@@ -131,8 +175,8 @@ binds {
 
 ## 配置模型
 
-Archlot 走 OpenAI 兼容接口，默认接 DeepSeek。配置在
-`~/.config/archlot/config.json`：
+`archlot-setup` 会引导你填好。也可以手动改
+`~/.config/archlot/config.json`（OpenAI 兼容接口，默认接 DeepSeek）：
 
 ```bash
 cp config.example.json ~/.config/archlot/config.json
@@ -176,10 +220,22 @@ chmod 600 ~/.config/archlot/config.json
 面板可拖标题栏移动。想让它自己改位置、尺寸、透明度，直接说
 “往左一点”“透明到 0.7”“换个暖色”，它会调用 `panel` / `appearance` 工具。
 
+**外观的保存与恢复**
+
+- “把现在的外观存成默认” → 当前样式成为默认外观
+- “把外观存成 work” → 命名保存，可以存多套（`night`、`work`、`demo`…）
+- “恢复默认外观” → 一键回到保存的默认外观
+- “换成 work” → 套用命名配置
+- “恢复出厂外观” → `reset`，只改当前，不动已保存的默认
+
+默认外观和命名配置存在 `~/.config/archlot/appearance.json`。
+
 ## 用 Copilot 键召唤
 
-很多笔记本上的 Copilot 键在 Wayland 里报告为 `XF86TouchpadOff`。niri 按基础层
-符号匹配，这台机器上实测绑定写成 `Mod+Shift+XF86TouchpadOff`，指向一个包装脚本：
+`archlot-setup` 可以自动生成并写入下面这段（写入前会备份 niri 配置）。
+手动配置时：很多笔记本上的 Copilot 键在 Wayland 里报告为 `XF86TouchpadOff`。
+niri 按基础层符号匹配，这台机器上实测绑定写成
+`Mod+Shift+XF86TouchpadOff`，指向一个包装脚本：
 
 ```bash
 # ~/.local/bin/ai
@@ -231,7 +287,7 @@ Archlot 的透明度由自己的 CSS 控制，niri 只负责窗口位置、圆�
 | `type_text` | 输入文字，支持真实键码模式 |
 | `press_key` | 发送组合键 / 命名键 |
 | `panel` | 移动、缩放、贴边、淡化或隐藏 Archlot 自己的面板 |
-| `appearance` | 改 Archlot 自己的颜色、透明度、圆角、字号、模糊，套预设，生成 niri 规则 |
+| `appearance` | 改颜色、透明度、圆角、字号、模糊；套预设；保存 / 恢复外观配置；生成 niri 规则 |
 | `run_shell` | 在工作区执行 shell 命令 |
 | `read_file` | 读取文本文件 |
 | `write_file` | 写入文本文件 |

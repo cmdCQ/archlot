@@ -92,40 +92,82 @@ ui/               the only place that imports GTK
 Dependencies point one way: `archlot.py → agent / tools / ui → core`.
 `agent/`, `tools/` and `ui/` never import each other.
 
-## Quick start
+## Install
 
 Archlot is developed on **Arch Linux + niri (Wayland)**. Other Wayland compositors
 may work, but niri is the tested target.
 
 ```bash
-# 1. System dependencies
+# System dependencies
 sudo pacman -S --needed python-gobject gtk4 at-spi2-core grim wtype wl-clipboard ffmpeg
 
-# 2. /dev/uinput access for the virtual mouse
+# /dev/uinput access for the virtual mouse; log out and back in after this
 sudo usermod -aG input "$USER"
-# log out and back in after this
+```
 
-# 3. Clone and configure
+User-level install, no sudo:
+
+```bash
 git clone https://github.com/cmdCQ/archlot.git
 cd archlot
-mkdir -p ~/.config/archlot
-cp config.example.json ~/.config/archlot/config.json
-chmod 600 ~/.config/archlot/config.json
-# put your DeepSeek key in api_key, or export DEEPSEEK_API_KEY
+./install.sh
+```
 
-# 4. Run
+The installer puts the app in `~/.local/share/archlot`, creates `archlot` and
+`archlot-setup` in `~/.local/bin`, adds a desktop entry and icon, then offers to run
+the setup wizard (`--no-setup` skips it).
+
+Uninstall removes only what it installed:
+
+```bash
+./uninstall.sh          # keep config and memory
+./uninstall.sh --purge  # also remove config, memory and logs
+```
+
+Arch package:
+
+```bash
+cd packaging && makepkg -si   # archlot-git
+```
+
+Installed paths, updates and troubleshooting: [`docs/install.md`](docs/install.md).
+
+You can also run straight from the checkout:
+
+```bash
 bin/archlot              # show the panel
 bin/archlot --toggle     # show / hide
 bin/archlot --daemon     # stay resident without showing
 ```
 
-Bind it to a key (niri example):
+## First-run setup
 
-```kdl
-binds {
-    Mod+Space repeat=false { spawn "~/projects/archlot/bin/archlot" "--toggle"; }
-}
+```bash
+archlot-setup
 ```
+
+The wizard opens with a **quick-start page**: what Archlot can do, the basic keys,
+and how to customize its appearance. Then three steps — no GUI popups:
+
+1. **Model**: API base, key, model name, workspace; written to
+   `~/.config/archlot/config.json` (mode 600)
+2. **Default appearance**: color swatches and presets; save one as your default look,
+   or fine-tune later by asking "a bit more transparent", "try cyan"
+3. **Hotkey**: generate the Copilot-key niri config; it skips apps that already have
+   an Archlot rule and backs up `config.kdl` before writing
+
+Re-run it anytime; empty answers keep current values. Show the tutorial or configure
+one part only:
+
+```bash
+archlot-setup --only tutorial    # re-read the quick start
+archlot-setup --only model
+archlot-setup --only appearance
+archlot-setup --only hotkey
+archlot-setup --no-tutorial      # skip the tutorial
+```
+
+From a checkout, use `bin/archlot-setup`.
 
 > **Accessibility note:** semantic mode uses AT-SPI. If your session has
 > `org.a11y.Status.IsEnabled=false`, Archlot falls back to screenshots and tells you
@@ -133,8 +175,9 @@ binds {
 
 ## Model configuration
 
-Archlot talks to any OpenAI-compatible endpoint; DeepSeek is the default. Settings
-live in `~/.config/archlot/config.json`:
+`archlot-setup` walks you through it. You can also edit
+`~/.config/archlot/config.json` by hand (any OpenAI-compatible endpoint; DeepSeek
+by default):
 
 ```bash
 cp config.example.json ~/.config/archlot/config.json
@@ -179,11 +222,22 @@ Drag the header to move the panel. To let Archlot change itself, just ask —
 "move left a bit", "set opacity to 0.7", "try a warm theme" — and it calls the
 `panel` / `appearance` tools.
 
+**Saving and restoring looks**
+
+- "Save this look as the default" → the current style becomes your default
+- "Save this look as work" → named profile; keep as many as you like
+- "Restore the default look" → one-step recovery
+- "Switch to work" → apply a named profile
+- "Factory reset the look" → `reset`; saved defaults are untouched
+
+Defaults and profiles live in `~/.config/archlot/appearance.json`.
+
 ## Summon it with the Copilot key
 
-On many laptops the Copilot key reports as `XF86TouchpadOff` under Wayland.
-niri matches the base-layer symbol, so bind `Mod+Shift+XF86TouchpadOff` to a
-small wrapper:
+`archlot-setup` can generate and write this for you (it backs up the niri config
+first). To do it by hand: on many laptops the Copilot key reports as
+`XF86TouchpadOff` under Wayland. niri matches the base-layer symbol, so bind
+`Mod+Shift+XF86TouchpadOff` to a small wrapper:
 
 ```bash
 # ~/.local/bin/ai
@@ -237,7 +291,7 @@ Write a script that renames these photos by date, then run it.
 | `type_text` | Type text, including real-keycode mode for stubborn UIs |
 | `press_key` | Send key chords / named keys |
 | `panel` | Move, resize, dock, fade or hide Archlot's own panel |
-| `appearance` | Restyle Archlot: colors, opacity, radius, font scale, blur; presets; niri rule |
+| `appearance` | Restyle Archlot: colors, opacity, radius, font scale, blur; presets; save/restore looks; niri rule |
 | `run_shell` | Run a shell command in the workspace |
 | `read_file` | Read a text file |
 | `write_file` | Write a text file |

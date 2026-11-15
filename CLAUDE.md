@@ -9,15 +9,23 @@ bin/archlot --toggle      # 唤出 / 收起
 bin/archlot               # 显示
 bin/archlot --daemon      # 只驻留，不显示
 
-~/.config/archlot/config.json   # 配置
-/tmp/archlot-app.log            # llm / 工具耗时、策略、记忆写入
+~/.config/archlot/config.json       # 模型配置
+~/.config/archlot/window.json       # 位置 / 尺寸 / 当前外观
+~/.config/archlot/appearance.json   # 默认外观 + 命名配置
+/tmp/archlot-app.log                # llm / 工具耗时、策略、记忆写入
+
+./install.sh            # 用户级安装（~/.local），--no-setup 跳过向导
+./uninstall.sh          # 干净卸载，--purge 连配置和记忆
+bin/archlot-setup       # 配置向导：教程 / 模型 / 外观 / Copilot 键
 ```
 
 ## 架构
 
 ```
 archlot.py        入口 + 接线
-core/             config / contracts / system / llm / memory
+bin/              archlot 启动器 / archlot-setup 配置向导
+install.sh        用户级安装；uninstall.sh 干净卸载
+core/             config / contracts / system / llm / memory / setup
 agent/            loop / effort / history / prompts
 tools/            policy / files / desktop / a11y / recall / devices / schema
 ui/               panel / chat / markdown / sound
@@ -68,7 +76,9 @@ ui/               panel / chat / markdown / sound
 - 右侧竖栏，默认 380×880，贴右居中，可拖标题栏移动
 - 默认背景 alpha 0.8，`panel(opacity=...)` 或 `appearance(opacity=...)` 可调
 - 外观状态存在 `window.json` 的 `opacity accent background radius font_scale
-  blur xray noise` 字段；校验、预设、CSS、niri 规则都在 `ui/appearance.py`（不 import gi）
+  blur xray noise` 字段；默认外观和命名配置存在 `appearance.json`
+  （`{"default": {...}, "profiles": {...}}`）
+- 校验、预设、存储、CSS、niri 规则都在 `ui/appearance.py`（不 import gi）
 - `appearance(action="niri")` 生成 window-rule：niri 负责模糊和圆角裁剪，
   **不要在 niri 规则里写 opacity**，会与 CSS alpha 叠乘
 - 状态呼吸：待机 5.5s、干活 1.5s、出错闪红

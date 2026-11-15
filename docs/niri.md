@@ -44,6 +44,9 @@ appearance(action="niri")
 
 ## 2. Copilot 键
 
+`archlot-setup`（`--only hotkey`）会自动生成并写入这一节；检测到已有 Archlot
+规则时不会重复写，写入前会备份 `config.kdl`。下面是手动配置的版本。
+
 很多笔记本键盘上的 Copilot 键在 Wayland 里报告为 `XF86TouchpadOff`。
 niri 按**基础层符号**匹配按键，所以绑定要写 `XF86TouchpadOff` 这个符号本身，
 不能写成 `Copilot`；这台机器上实测还要带上 `Mod+Shift` 前缀。
