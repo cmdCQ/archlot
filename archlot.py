@@ -173,6 +173,7 @@ class Archlot(Gtk.Application):
             )
         except Exception as exc:  # noqa: BLE001
             print(f"CSS 加载失败：{exc}", file=sys.stderr)
+        # 透明度 provider 在 ensure_ui 里挂到 root 上
 
     def ensure_ui(self):
         if self.win is not None:
@@ -196,6 +197,10 @@ class Archlot(Gtk.Application):
         win.set_child(root)
         self.root = root
         self._min_size = (0, 0)
+        self._alpha_provider = Gtk.CssProvider()
+        root.get_style_context().add_provider(
+            self._alpha_provider, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        self._apply_alpha()
 
         # 顶部状态行
         self.header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
@@ -745,7 +750,7 @@ class Archlot(Gtk.Application):
         default = {"x": int(sw) - MARGIN - PANEL_W,
                    "y": (int(sh) - h) // 2,
                    "w": PANEL_W, "h": h,
-                   "opacity": 1.0}
+                   "opacity": 0.8}
         try:
             with open(self.GEOM_PATH) as f:
                 saved = json.load(f)
@@ -857,7 +862,8 @@ class Archlot(Gtk.Application):
         self._apply_chrome()
         if not self.win.get_visible():
             self.win.present()
-        self.win.set_opacity(self.geom.get("opacity", 1.0))
+        self.win.set_opacity(1.0)
+        self._apply_alpha()
         self._place()
         self._fade_in()
         self.entry.grab_focus()
@@ -884,8 +890,7 @@ class Archlot(Gtk.Application):
         if self.win is None or not getattr(self, "_hiding", False):
             return False
         self._fade_step += 1
-        base = float(self.geom.get("opacity", 1.0))
-        self.win.set_opacity(base * max(0.0, 1.0 - self._fade_step / 12.0))
+        self.win.set_opacity(max(0.0, 1.0 - self._fade_step / 12.0))
         if self._fade_step >= 12:
             self._unmap()
             return False
@@ -895,7 +900,7 @@ class Archlot(Gtk.Application):
         self._hiding = False
         if self.win is not None:
             self.win.set_visible(False)
-            self.win.set_opacity(float(self.geom.get("opacity", 1.0)))
+            self.win.set_opacity(1.0)
         # 不要主动把焦点还给旧窗口：那个窗口可能在别的工作区，
         # 聚焦它会让 niri 跳到别的工作区。收起来后让合成器自己决定焦点。
         return False
@@ -1222,7 +1227,8 @@ class Archlot(Gtk.Application):
         """在主线程应用几何变化。"""
         self.geom = self._clamp_geom(self.geom, self._screen)
         if self.win is not None:
-            self.win.set_opacity(self.geom.get("opacity", 1.0))
+            self.win.set_opacity(1.0)
+            self._apply_alpha()
             w, h = self.geom["w"], self.geom["h"]
             # 小尺寸时先收起占地方的装饰，最小尺寸才能真的降下来
             self._apply_chrome()
@@ -1431,6 +1437,16 @@ class Archlot(Gtk.Application):
                     daemon=True).start()
                 return
 
+    def _apply_alpha(self, alpha=None):
+        """透明度作用于面板背景，而不是整个窗口。"""
+        a = float(self.geom.get("opacity", 0.8) if alpha is None else alpha)
+        a = max(0.2, min(1.0, a))
+        try:
+            self._alpha_provider.load_from_data(
+                (".root { background-color: rgba(17, 17, 22, %.3f); }" % a).encode())
+        except Exception as exc:  # noqa: BLE001
+            _log(f"alpha 设置失败：{exc}")
+
     def _set_state(self, state):
         for name in ("state-idle", "state-busy", "state-error"):
             self.root.remove_css_class(name)
@@ -1542,7 +1558,7 @@ class Archlot(Gtk.Application):
             v = 1.0
         self.geom["opacity"] = v
         self._save_geom()
-        self._schedule_apply()
+        GLib.idle_add(self._apply_alpha, v)
         return self.panel_info()
 
     def panel_reset(self):
