@@ -3,183 +3,164 @@ window.archlot-window {
 }
 
 .root {
-    background-image: linear-gradient(180deg,
-        rgba(26, 25, 33, 0.975), rgba(9, 9, 13, 0.965));
-    border-radius: 18px;
-    border: 1px solid rgba(255, 255, 255, 0.075);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.35),
-                0 18px 50px rgba(0, 0, 0, 0.35);
+    background-color: rgba(17, 17, 22, 0.82);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.20);
 }
 
 /* ---------------- 顶部状态 ---------------- */
 
 .header {
-    margin: 16px 20px 12px 20px;
-    padding-bottom: 11px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+    margin: 14px 18px 6px 18px;
 }
 
 .brand {
-    color: rgba(240, 237, 248, 0.72);
+    color: rgba(236, 233, 243, 0.55);
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 8pt;
-    font-weight: 700;
-    letter-spacing: 2px;
+    font-weight: 600;
+    letter-spacing: 1.4px;
 }
 
 .status {
-    color: rgba(190, 184, 202, 0.55);
+    color: rgba(190, 184, 202, 0.48);
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 8pt;
     margin-right: 2px;
 }
 
 .thinking-dot {
-    min-width: 6px;
-    min-height: 6px;
+    min-width: 5px;
+    min-height: 5px;
     border-radius: 99px;
-    background-color: #c6b4ff;
-    margin-right: 2px;
+    background-color: #b9a7f5;
+    margin-right: 3px;
     animation: dot-pulse 1.5s ease-in-out infinite;
 }
 
 @keyframes dot-pulse {
-    0%   { opacity: 0.20; }
-    50%  { opacity: 0.95; }
-    100% { opacity: 0.20; }
+    0%   { opacity: 0.15; }
+    50%  { opacity: 0.85; }
+    100% { opacity: 0.15; }
 }
 
 /* ---------------- 消息 ---------------- */
 
 .messages {
-    margin: 8px 18px 10px 18px;
+    margin: 6px 18px 8px 18px;
 }
 
 .empty-state {
-    margin: 22px 2px 8px 2px;
+    margin: 18px 2px 6px 2px;
 }
 
 .empty-title {
-    color: rgba(244, 241, 249, 0.95);
+    color: rgba(240, 237, 246, 0.92);
     font-family: "Noto Sans CJK SC", "Noto Sans";
-    font-size: 13pt;
-    font-weight: 600;
+    font-size: 12pt;
+    font-weight: 500;
 }
 
 .empty-hint {
-    color: rgba(190, 184, 202, 0.50);
+    color: rgba(190, 184, 202, 0.44);
     font-family: "Noto Sans CJK SC", "Noto Sans";
-    font-size: 9pt;
+    font-size: 8.5pt;
 }
 
 .user-bubble {
-    background-image: linear-gradient(160deg,
-        rgba(198, 180, 255, 0.17), rgba(160, 140, 220, 0.10));
-    border: 1px solid rgba(205, 188, 255, 0.16);
-    border-radius: 14px 14px 5px 14px;
-    padding: 8px 12px;
-    margin-left: 24px;
+    background-color: rgba(255, 255, 255, 0.055);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 7px 11px;
+    margin-left: 28px;
     transition-property: background-color, border-color;
-    transition-duration: 160ms;
+    transition-duration: 140ms;
     transition-timing-function: ease-out;
 }
 
 .user-text {
-    color: #f7f3ff;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+    color: rgba(242, 239, 248, 0.94);
     font-family: "Noto Sans CJK SC", "Noto Sans";
-    font-size: 10pt;
+    font-size: 9.8pt;
 }
 
 .assistant-block {
     margin-right: 4px;
-    padding: 1px 2px 2px 2px;
+    padding: 0 2px 2px 2px;
 }
 
 .assistant-name {
-    color: rgba(198, 180, 255, 0.52);
+    color: rgba(185, 167, 245, 0.40);
     font-family: "Noto Sans CJK SC", "Noto Sans";
-    font-size: 7.5pt;
+    font-size: 7pt;
     font-weight: 700;
-    letter-spacing: 1.4px;
+    letter-spacing: 1.2px;
 }
 
 .assistant-text {
-    color: rgba(240, 237, 246, 0.95);
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 0 1px rgba(0, 0, 0, 0.35);
+    color: rgba(236, 233, 242, 0.92);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.40);
     font-family: "Noto Sans CJK SC", "Noto Sans";
-    font-size: 10.5pt;
+    font-size: 10pt;
 }
 
 .tool-row {
     margin: 0 2px 0 2px;
-    padding: 1px 0;
 }
 
 .tool-icon {
-    color: rgba(198, 180, 255, 0.40);
-    font-size: 7.5pt;
+    color: rgba(185, 167, 245, 0.30);
+    font-size: 7pt;
 }
 
 .tool-text {
-    color: rgba(190, 184, 202, 0.44);
+    color: rgba(185, 180, 196, 0.34);
     font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
-    font-size: 8pt;
+    font-size: 7.5pt;
 }
 
 .notice-text {
-    color: rgba(170, 164, 183, 0.85);
+    color: rgba(165, 160, 176, 0.75);
     font-family: "Noto Sans CJK SC", "Noto Sans";
-    font-size: 9.5pt;
+    font-size: 9pt;
     font-style: italic;
     transition-property: opacity;
-    transition-duration: 200ms;
+    transition-duration: 180ms;
 }
 
 .error-text {
-    background-color: rgba(242, 184, 181, 0.09);
-    border: 1px solid rgba(242, 184, 181, 0.16);
-    border-radius: 12px;
-    padding: 8px 12px;
-    color: #f3b9b6;
+    color: #e9a9a6;
     font-family: "Noto Sans CJK SC", "Noto Sans";
-    font-size: 9.5pt;
+    font-size: 9pt;
+    padding: 2px 0;
     transition-property: opacity;
-    transition-duration: 200ms;
+    transition-duration: 180ms;
 }
 
 /* ---------------- 输入区 ---------------- */
 
 .divider {
-    background-image: linear-gradient(to right,
-        rgba(255, 255, 255, 0.0),
-        rgba(255, 255, 255, 0.09),
-        rgba(255, 255, 255, 0.0));
+    background-color: rgba(255, 255, 255, 0.045);
     min-height: 1px;
     border: none;
-    margin: 0 16px 0 16px;
+    margin: 0 18px 0 18px;
 }
 
 .input-bar {
-    background-image: linear-gradient(180deg,
-        rgba(0, 0, 0, 0.26), rgba(0, 0, 0, 0.14));
-    border: 1px solid rgba(255, 255, 255, 0.075);
-    border-radius: 14px;
-    min-height: 44px;
-    margin: 10px 14px 14px 14px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.20);
-    transition-property: border-color, background-image, box-shadow;
-    transition-duration: 170ms;
+    background-color: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    min-height: 40px;
+    margin: 8px 14px 12px 14px;
+    transition-property: border-color, background-color;
+    transition-duration: 150ms;
     transition-timing-function: ease-out;
 }
 
 .input-bar:focus-within {
-    border-color: rgba(198, 180, 255, 0.38);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07),
-                inset 0 0 0 1px rgba(198, 180, 255, 0.10),
-                0 0 18px rgba(150, 120, 255, 0.10);
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(185, 167, 245, 0.22);
 }
 
 entry {
@@ -187,20 +168,20 @@ entry {
     background-image: none;
     border: none;
     box-shadow: none;
-    color: #f4f1fa;
+    color: rgba(240, 237, 246, 0.94);
     font-family: "Noto Sans CJK SC", "Noto Sans";
-    font-size: 10.5pt;
-    caret-color: #c6b4ff;
-    margin-left: 6px;
+    font-size: 10pt;
+    caret-color: #b9a7f5;
+    margin-left: 4px;
 }
 
 entry > text {
     background: transparent;
-    color: #f4f1fa;
+    color: rgba(240, 237, 246, 0.94);
 }
 
 entry > text > placeholder {
-    color: rgba(190, 184, 202, 0.42);
+    color: rgba(190, 184, 202, 0.36);
 }
 
 entry:focus,
@@ -214,68 +195,69 @@ entry:focus > text {
 }
 
 button.send {
-    background-image: linear-gradient(160deg, #d2c4ff, #b8a2ff);
-    color: #1a1426;
+    background-color: transparent;
+    background-image: none;
+    color: rgba(185, 167, 245, 0.80);
     border: none;
-    box-shadow: 0 2px 10px rgba(130, 100, 230, 0.28);
-    border-radius: 99px;
+    box-shadow: none;
+    border-radius: 8px;
     min-width: 28px;
     min-height: 28px;
     padding: 0;
-    margin-right: 7px;
+    margin-right: 6px;
     font-size: 11pt;
-    font-weight: 700;
-    transition-property: background-image, border-color, box-shadow, color;
-    transition-duration: 140ms;
+    font-weight: 600;
+    transition-property: background-color, color;
+    transition-duration: 130ms;
     transition-timing-function: ease-out;
 }
 
 button.send:hover {
-    background-image: linear-gradient(160deg, #ded3ff, #c9b6ff);
-    box-shadow: 0 3px 16px rgba(140, 110, 240, 0.38);
+    background-color: rgba(185, 167, 245, 0.14);
+    color: rgba(205, 192, 255, 0.95);
 }
 
 button.send:active {
-    background-image: linear-gradient(160deg, #b6a3f0, #a58fe6);
+    background-color: rgba(185, 167, 245, 0.20);
 }
 
 /* ---------------- 确认条 ---------------- */
 
 .confirm-bar {
-    background-color: rgba(198, 180, 255, 0.07);
-    border: 1px solid rgba(198, 180, 255, 0.16);
-    border-radius: 12px;
-    padding: 10px 12px;
+    background-color: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 11px;
+    padding: 9px 11px;
 }
 
 .confirm-text {
-    color: rgba(226, 221, 236, 0.88);
+    color: rgba(214, 209, 224, 0.82);
     font-family: "Noto Sans CJK SC", "Noto Sans";
-    font-size: 9.5pt;
+    font-size: 9pt;
 }
 
 button.small {
-    background-color: rgba(255, 255, 255, 0.06);
-    color: rgba(236, 232, 245, 0.90);
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    border-radius: 8px;
-    padding: 4px 14px;
-    font-size: 9.5pt;
+    background-color: transparent;
+    background-image: none;
+    color: rgba(224, 219, 234, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 7px;
+    padding: 3px 12px;
+    font-size: 9pt;
     box-shadow: none;
     transition-property: background-color, border-color, color;
-    transition-duration: 140ms;
-    transition-timing-function: ease-out;
+    transition-duration: 130ms;
 }
 
 button.small:hover {
-    background-color: rgba(255, 255, 255, 0.11);
-    border-color: rgba(255, 255, 255, 0.16);
+    background-color: rgba(255, 255, 255, 0.07);
+    color: rgba(240, 236, 248, 0.92);
 }
 
 /* ---------------- 其它 ---------------- */
 
 spinner {
-    color: #c6b4ff;
+    color: rgba(185, 167, 245, 0.70);
 }
 
 scrollbar {
@@ -284,14 +266,14 @@ scrollbar {
 }
 
 scrollbar slider {
-    background-color: rgba(198, 180, 255, 0.16);
+    background-color: rgba(255, 255, 255, 0.10);
     border-radius: 99px;
     min-width: 3px;
-    min-height: 28px;
+    min-height: 26px;
     transition-property: background-color;
-    transition-duration: 160ms;
+    transition-duration: 140ms;
 }
 
 scrollbar slider:hover {
-    background-color: rgba(198, 180, 255, 0.30);
+    background-color: rgba(255, 255, 255, 0.18);
 }
