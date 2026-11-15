@@ -72,7 +72,10 @@ ui         ──► core
 7. **循环必须有预算。** `max_steps`、`max_turn_seconds`、`max_tool_seconds`
    都在 `Config` 里；新增循环必须能取消、能超时。
 
-8. **UI 细节不变量**见 `CLAUDE.md`：非 resizable 窗口改尺寸要先压最小尺寸；
+8. **输入框固定 `im-module=fcitx5`**。GTK 4.24 的 Wayland text-input 在中文
+   preedit 时光标不跟随，走 fcitx5 的 GTK 模块可以避开；不要删掉这个属性。
+
+9. **UI 细节不变量**见 `CLAUDE.md`：非 resizable 窗口改尺寸要先压最小尺寸；
    透明度作用在 `.root` 的 CSS alpha，不用 `win.set_opacity`；
    截图坐标必须浮点换算，不许 `int()` 截断；`wl-copy` 要丢管道；
    Pango alpha 用 0–65536；niri 会夹取浮动窗口，隐藏靠淡出 + unmap。

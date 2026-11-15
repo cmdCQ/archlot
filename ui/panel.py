@@ -307,6 +307,9 @@ class Panel:
         self.entry.set_has_frame(False)
         self.entry.set_hexpand(True)
         self.entry.set_width_chars(1)
+        # GTK 4.24 的 Wayland text-input 在中文 preedit 期间不更新光标；
+        # 显式走 fcitx5 的 GTK 模块，由应用内 IM 处理 preedit 光标。
+        self.entry.set_property("im-module", "fcitx5")
         self.entry.set_placeholder_text("问点什么，或者让我去做")
         self.entry.connect("activate", self.on_send)
         send = Gtk.Button(label="↑")
