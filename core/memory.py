@@ -317,12 +317,6 @@ class Memory:
                     """, (f"%{cand}%", limit * 3)).fetchall()
                     if rows:
                         break
-                if not rows:
-                    rows = con.execute("""
-                        SELECT id, text, tags, last_used, 0
-                        FROM facts WHERE status='active'
-                        ORDER BY last_used DESC LIMIT ?
-                    """, (limit * 3,)).fetchall()
 
         scored = []
         for fid, text, tags, last_used, rank in rows:

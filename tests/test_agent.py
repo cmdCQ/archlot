@@ -6,6 +6,7 @@ import unittest
 from unittest import mock
 
 from agent import Agent
+from agent.loop import _explicit_preference
 from core.config import Config
 from core.contracts import ok
 from tools.policy import Policy
@@ -70,6 +71,10 @@ class FakeMemory:
 
 
 class AgentTurnTest(unittest.TestCase):
+    def test_preference_needs_explicit_long_term_cue(self):
+        self.assertFalse(_explicit_preference("你太简短了"))
+        self.assertTrue(_explicit_preference("以后回答别太简短"))
+
     def test_tool_turn_keeps_history_paired(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)

@@ -33,6 +33,16 @@ class MemoryTest(unittest.TestCase):
         with open(os.path.join(self.mem.notes_dir, files[0])) as f:
             self.assertIn("测试", f.read())
 
+    def test_search_without_match_returns_empty(self):
+        self.mem.add("用户偏好简洁回答", tags="偏好")
+        self.assertEqual(self.mem.search("火星殖民计划"), [])
+
+    def test_context_does_not_inject_unrelated_recent_facts(self):
+        self.mem.add("用户偏好简洁回答", tags="偏好")
+        ctx = self.mem.context_for("火星殖民计划")
+        self.assertNotIn("简洁", ctx)
+        self.assertIn("简洁", self.mem.context_for("简洁"))
+
 
 if __name__ == "__main__":
     unittest.main()

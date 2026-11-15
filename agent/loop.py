@@ -20,6 +20,18 @@ from .prompts import EXTRACT_PROMPT, SUMMARY_PROMPT, SYSTEM_PROMPT
 
 log = logging.getLogger(__name__)
 
+# 自动抽取的“偏好”必须有用户原话里的长期信号，避免把一次性的
+# “你太冷淡了”推断成“用户不喜欢简短回答”。
+_PREFERENCE_CUES = (
+    "记住", "以后", "下次", "每次", "总是", "始终", "一律", "默认",
+    "我偏好", "我习惯", "我讨厌", "我不喜欢", "我希望你", "我要你",
+    "别再", "不要再",
+)
+
+
+def _explicit_preference(text):
+    return any(cue in text for cue in _PREFERENCE_CUES)
+
 
 class Agent:
     def __init__(self, cfg, ui: UI, tools, memory, policy):
@@ -322,6 +334,9 @@ class Agent:
                 text = str(text or "").strip()
                 if kind == "经验" and any(w in text for w in (
                         "色情", "内容政策", "违规", "拒绝提供", "不在可协助范围")):
+                    continue
+                if kind == "偏好" and not _explicit_preference(user_text):
+                    log.info("memory skip [偏好]（无明确表述）: %s", text)
                     continue
                 if len(text) >= 4:
                     self.memory.add(text, tags=kind, source="auto")
