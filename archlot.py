@@ -13,6 +13,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 gi.require_version("Pango", "1.0")
+gi.require_version("Graphene", "1.0")
 from gi.repository import Gdk, Gio, GLib, Graphene, Gtk, Pango  # noqa: E402
 
 import llm  # noqa: E402
@@ -65,6 +66,7 @@ SYSTEM_PROMPT = """你是 Archlot，跑在用户 cqsomt 的 Arch Linux + niri �
 - 判断依据：输入后截图发现字符缺失、变成数字或根本没出现，就是键盘协议不兼容，别反复重试 auto。
 - 你可以用 panel 工具调整自己的窗口：位置、尺寸、贴边停靠、透明度、收起或唤出。用户让你改自己的样子或位置时直接调，不用问。
 - 默认是 auto 审查模式：普通命令和工作区外的只读/常规写入直接执行，不再弹框；只有 sudo、mkfs、dd、关机重启、卸载软件包、`rm -rf` 打到工作区外等真正危险的操作才会要求用户确认。
+- 生成大段产物（SVG、HTML、长脚本、长文档）时，先写进工作区文件，再用工具打开或展示，不要把整段代码贴进聊天。
 - 绝不编造工具结果。做不到就直说做不到。
 """
 
@@ -73,7 +75,7 @@ EXTRACT_PROMPT = """你是记忆整理器。从下面这轮对话里提取值得
 只记：用户稳定的偏好、习惯、环境配置、长期项目、明确的要求或禁区。
 不要记：一次性任务细节、临时数字、工具输出、助手自己的客套话。
 每条一句话，脱离上下文也能看懂，用第三人称（“用户…”）。
-只输出 JSON 数组，例如 [{"text": "用户偏好深色主题"}]；没有就输出 []。
+只输出 JSON 数组，例如 [{{"text": "用户偏好深色主题"}}]；没有就输出 []。
 
 用户：{user}
 助手：{assistant}
@@ -91,7 +93,7 @@ def load_config():
     cfg = {
         "api_base": "https://api.deepseek.com",
         "model": "deepseek-flash",
-        "max_tokens": 4096,
+        "max_tokens": 16384,
         "workspace": os.path.expanduser("~/archlot-workspace"),
     }
     try:
@@ -934,7 +936,13 @@ class Archlot(Gtk.Application):
                 self.messages.append(msg)
                 calls = msg.get("tool_calls")
                 if not calls:
-                    if not (msg.get("content") or "").strip():
+                    content = (msg.get("content") or "").strip()
+                    if _finish == "length":
+                        GLib.idle_add(
+                            self.append_notice,
+                            "这次回答达到输出上限被截断了。可以让我「继续」，"
+                            "或把任务拆小一点。", gen)
+                    elif not content:
                         GLib.idle_add(
                             self.append_notice,
                             "模型这次没有返回内容，任务可能没完成。可以再试一次。", gen)
