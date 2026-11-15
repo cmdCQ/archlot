@@ -1,5 +1,7 @@
 # Maintainer: cmdCQ
-# Arch 包模板：makepkg -si
+# Arch 包：在 packaging/ 里运行 makepkg -si。
+# 默认从本仓库的当前 HEAD 构建；发布到 AUR 时把 source 换成
+#   source=("git+https://github.com/cmdCQ/archlot.git")
 # 程序装到 /usr/share/archlot，/usr/bin 下只放两个软链接。
 pkgname=archlot-git
 pkgver=0.1.0
@@ -14,7 +16,8 @@ makedepends=('git')
 optdepends=('fcitx5: Chinese input method support in the panel')
 provides=('archlot')
 conflicts=('archlot')
-source=("git+$url.git")
+_localroot=$(realpath "${startdir:-$PWD}/..")
+source=("archlot::git+file://$_localroot")
 sha256sums=('SKIP')
 
 pkgver() {
