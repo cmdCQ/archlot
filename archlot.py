@@ -140,7 +140,6 @@ class Archlot(Gtk.Application):
         root.set_size_request(self.geom["w"], self.geom["h"])
         win.set_child(root)
         self.root = root
-        self._last_external = None
         self._min_size = (0, 0)
 
         # 顶部状态行
@@ -520,7 +519,6 @@ class Archlot(Gtk.Application):
         self.ensure_ui()
         self._hiding = False
         self._fit_to_screen()
-        self._remember_external_focus()
         self.header.set_visible(True)
         self.scroll.set_visible(True)
         self.divider.set_visible(True)
@@ -533,15 +531,6 @@ class Archlot(Gtk.Application):
         self.win.set_opacity(self.geom.get("opacity", 1.0))
         self._place()
         self.entry.grab_focus()
-
-    def _remember_external_focus(self):
-        try:
-            for w in list_windows():
-                if w.get("is_focused") and w.get("app_id") != APP_ID:
-                    self._last_external = w["id"]
-                    return
-        except Exception:  # noqa: BLE001
-            pass
 
     def hide(self):
         """向右滑出 + 同时淡出，动画走完再 unmap，避免半路卡住。"""
@@ -570,13 +559,8 @@ class Archlot(Gtk.Application):
         if self.win is not None:
             self.win.set_visible(False)
             self.win.set_opacity(float(self.geom.get("opacity", 1.0)))
-        if self._last_external:
-            GLib.timeout_add(60, self._refocus_external)
-        return False
-
-    def _refocus_external(self):
-        run(["niri", "msg", "action", "focus-window",
-             "--id", str(self._last_external)], timeout=3)
+        # 不要主动把焦点还给旧窗口：那个窗口可能在别的工作区，
+        # 聚焦它会让 niri 跳到别的工作区。收起来后让合成器自己决定焦点。
         return False
 
     def toggle(self):
