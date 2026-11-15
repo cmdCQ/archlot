@@ -4,7 +4,7 @@
 
 仓库：`~/projects/archlot`，主分支 `main`。
 运行：`bin/archlot --toggle`。日志：`/tmp/archlot-app.log`。
-安装：`./install.sh`；配置向导：`bin/archlot-setup`；卸载：`./uninstall.sh`。
+安装：`./install.sh`；图形向导：`bin/archlot --setup`；卸载：`./uninstall.sh`。
 
 ---
 
@@ -53,36 +53,44 @@
 - `panel(action="opacity", opacity=1.0)` 设的是这个 alpha；1.0 完全不透明
 - `win.set_opacity` 只用于淡出动画，不要混用
 
-### 3.4 点击精度（做过严格测试）
+### 3.4 图形配置向导
+- `ui/onboarding.py`，作为 `Gtk.Stack` 的 setup 页嵌在同一个面板里，不另开窗口。
+- 首次启动（`config.json` 没有 `onboarding_done`）或 `--setup` 打开；标题栏 ⚙ 随时重开。
+- 教程 → 模型 → 外观（预设/滑杆实时预览，保存默认/命名配置）→ Copilot 键 → 完成。
+- 模型写 `config.json`（600）并更新运行中的 `Config`；快捷键复用 `core/setup.py`，
+  写入前备份 `config.kdl`，已有 app-id 时只显示片段。
+- 终端 `bin/archlot-setup` 保留作无图形会话备用。
+
+### 3.5 点击精度（做过严格测试）
 - 截图默认 `scale=0.8`，小目标建议 1.0
 - `tools/desktop.py:to_screen()`：`x * 逻辑宽 / 图片宽`，**不要 int 截断**
 - 实测：24 个 24px 目标 × 3 档缩放，72/72 命中，平均误差 0.27px，最大 0.4px
 - 剩余误差来自模型“看”截图的精度：±1 图像像素在 0.45/0.6/0.8 下分别放大成 2.2/1.7/1.3 逻辑像素
 - 面板挡住点击目标时 `park_panel()` 会临时挪开
 
-### 3.5 输入
+### 3.6 输入
 - ASCII 用 `wtype`；中文走剪贴板（`wl-copy` + `ctrl+v`，注意 fork 问题）
 - `type_text(method="keys")` / `press_key(method="keys")`：uinput 真实键码，专治 noVNC/KVM 控制台
 - uinput 设备创建后要等 ~450ms 再发键，否则第一个键会被吞
 
-### 3.6 滚动
+### 3.7 滚动
 - 贴底状态 `_stick_bottom`：用户上翻自动解除，回到底部恢复
 - `_scroll_tick` 每帧重读最新高度；`finish()` 后 0/120/300ms 各补一次
 
-### 3.7 Markdown
+### 3.8 Markdown
 - `ui/markdown.py` → Pango markup
 - 支持标题、粗体、斜体、行内代码、代码块、列表、引用、分隔线、简单表格
 - 流式输出时实时渲染；光标通过尾部字符的 alpha 闪烁
 - **坑**：`alpha="0%"` 非法，必须用数值（0–65536）
 
-### 3.8 记忆
+### 3.9 记忆
 - `core/memory.py`：SQLite + FTS5（trigram），中文用 3 字滑窗检索
 - 写入：每轮自动抽取（偏好/环境/项目）+ 失败反思（经验）
 - 去重：写入时相似度合并（bigram Jaccard ≥0.72），启动 / 清空会话时本地聚类（≥0.45）
 - 经验类检索加权靠前；上下文里标 `[经验]`
 - 清除单条：`memory(action="forget", query="关键词")`
 
-### 3.9 动效
+### 3.10 动效
 - 状态呼吸（CSS keyframes，按 class 切换）
 - 消息 Revealer 上滑、清空淡出、工具卡扫光 + 完成高亮
 - 推理旁白：取 `reasoning_content` 最后一句，260ms 节流

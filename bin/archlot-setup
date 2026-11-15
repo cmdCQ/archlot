@@ -318,6 +318,14 @@ def main():
         configure_appearance()
     if args.only in ("all", "hotkey"):
         configure_hotkey(args.write_niri)
+    if args.only == "all":
+        raw = read_json(CONFIG_PATH)
+        raw = setup_lib.update_config(raw, {"onboarding_done": True})
+        atomic_write_json(CONFIG_PATH, raw)
+        try:
+            os.chmod(CONFIG_PATH, 0o600)
+        except OSError:
+            pass
     print("\n完成。如果 Archlot 正在运行，请退出后重新启动使配置生效。")
 
 

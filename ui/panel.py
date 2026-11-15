@@ -9,8 +9,12 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import shutil
+import sys
 import threading
 import time
+from pathlib import Path
 
 import gi
 
@@ -21,11 +25,13 @@ gi.require_version("Graphene", "1.0")
 from gi.repository import Gdk, GLib, Graphene, Gtk, Pango  # noqa: E402
 
 from core import system  # noqa: E402
-from core.config import (APPEARANCE_PATH, APP_ID, GEOM_PATH,  # noqa: E402
-                         atomic_write_json)
+from core import setup as setup_lib  # noqa: E402
+from core.config import (APPEARANCE_PATH, APP_ID, CONFIG_PATH,  # noqa: E402
+                         GEOM_PATH, atomic_write_json)
 from core.contracts import ToolResult  # noqa: E402
 from . import appearance, markdown  # noqa: E402
 from .chat import TOOL_LABELS, tool_preview  # noqa: E402
+from .onboarding import Onboarding  # noqa: E402
 from .sound import Sound  # noqa: E402
 
 log = logging.getLogger(__name__)
@@ -73,6 +79,7 @@ class Panel:
         self._reason_timer = 0
 
         self._has_messages = False
+        self._setup_active = False
         self._hiding = False
         self._fade_step = 0
         self._shot_focus = None
@@ -186,6 +193,16 @@ class Panel:
         root.set_size_request(self.geom["w"], self.geom["h"])
         win.set_child(root)
         self.root = root
+        self.stack = Gtk.Stack()
+        self.stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
+        self.stack.set_transition_duration(180)
+        self.stack.set_vexpand(True)
+        self.stack.set_hexpand(True)
+        root.append(self.stack)
+        self.chat_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.chat_page.set_vexpand(True)
+        self.stack.add_named(self.chat_page, "chat")
+        main = self.chat_page
         self._appearance_provider = Gtk.CssProvider()
         root.get_style_context().add_provider(
             self._appearance_provider, Gtk.STYLE_PROVIDER_PRIORITY_USER)
@@ -208,9 +225,15 @@ class Panel:
         self.status.set_xalign(1)
         self.spinner = Gtk.Spinner()
         self.spinner.set_visible(False)
+        self.gear = Gtk.Button(label="⚙")
+        self.gear.add_css_class("gear")
+        self.gear.set_tooltip_text("设置、教程与外观")
+        self.gear.set_valign(Gtk.Align.CENTER)
+        self.gear.connect("clicked", lambda *_: self.open_setup())
         self.header.append(brand)
         self.header.append(self.thinking_dot)
         self.header.append(self.status)
+        self.header.append(self.gear)
         self.header.append(self.spinner)
 
         press = Gtk.GestureClick()
@@ -218,7 +241,7 @@ class Panel:
         press.connect("pressed", self._begin_drag)
         self.header.add_controller(press)
         self.header.set_cursor_from_name("grab")
-        root.append(self.header)
+        main.append(self.header)
 
         # 推理旁白
         self.narration = Gtk.Label(label="")
@@ -226,14 +249,14 @@ class Panel:
         self.narration.set_xalign(0)
         self.narration.set_ellipsize(Pango.EllipsizeMode.END)
         self.narration.set_visible(False)
-        root.append(self.narration)
+        main.append(self.narration)
 
         # 对话区
         self.scroll = Gtk.ScrolledWindow()
         self.scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.scroll.set_vexpand(True)
         self.scroll.set_visible(False)
-        root.append(self.scroll)
+        main.append(self.scroll)
 
         self._stick_bottom = True
         self._scroll_programmatic = False
@@ -253,12 +276,12 @@ class Panel:
         self.empty_title = Gtk.Label(label="需要我做什么？")
         self.empty_title.add_css_class("empty-title")
         self.empty_title.set_xalign(0)
-        empty_hint = Gtk.Label(label="执行命令 · 读写文件 · 看屏幕 · 搜网页")
-        empty_hint.add_css_class("empty-hint")
-        empty_hint.set_xalign(0)
-        empty_hint.set_wrap(True)
+        self.empty_hint = Gtk.Label(label="执行命令 · 读写文件 · 看屏幕 · 搜网页")
+        self.empty_hint.add_css_class("empty-hint")
+        self.empty_hint.set_xalign(0)
+        self.empty_hint.set_wrap(True)
         self.empty_state.append(self.empty_title)
-        self.empty_state.append(empty_hint)
+        self.empty_state.append(self.empty_hint)
         self.empty_revealer = Gtk.Revealer()
         self.empty_revealer.set_transition_type(
             Gtk.RevealerTransitionType.CROSSFADE)
@@ -297,13 +320,13 @@ class Panel:
         no.connect("clicked", lambda *_: self._answer_confirm(False))
         cbox.append(btns)
         self.confirm_revealer.set_child(cbox)
-        root.append(self.confirm_revealer)
+        main.append(self.confirm_revealer)
 
         # 输入区
         self.divider = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
         self.divider.add_css_class("divider")
         self.divider.set_visible(False)
-        root.append(self.divider)
+        main.append(self.divider)
 
         self.inputbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         self.inputbox.add_css_class("input-bar")
@@ -323,7 +346,11 @@ class Panel:
         send.connect("clicked", lambda *_: self.on_send(self.entry))
         self.inputbox.append(self.entry)
         self.inputbox.append(send)
-        root.append(self.inputbox)
+        main.append(self.inputbox)
+
+        self.onboarding = Onboarding(self)
+        self.stack.add_named(self.onboarding.widget, "setup")
+        self.stack.set_visible_child_name("chat")
 
         keys = Gtk.EventControllerKey()
         keys.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
@@ -515,10 +542,13 @@ class Panel:
         adj = self.scroll.get_vadjustment()
         if adj is not None:
             adj.set_value(0)
-        if self.win is not None and self.win.get_visible():
+        if (self.win is not None and self.win.get_visible()
+                and not self._setup_active):
             self.entry.grab_focus()
 
     def on_key(self, controller, keyval, keycode, state):
+        if self._setup_active:
+            return self.onboarding.on_key(keyval, state)
         if keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
             if (self._confirm_event is not None
                     and not self._confirm_event.is_set()):
@@ -874,22 +904,73 @@ class Panel:
 
     def show(self):
         log.info("show")
+        if not self.cfg.onboarding_done and not self._setup_active:
+            self._setup_active = True
+            self.onboarding.start()
         self._hiding = False
         self._fit_to_screen(self._screen)
-        self.header.set_visible(True)
-        self.scroll.set_visible(True)
-        self.divider.set_visible(True)
-        self.inputbox.set_visible(True)
-        self.confirm_revealer.set_visible(True)
-        self._set_empty(not self._has_messages, animate=False)
-        self._apply_chrome()
+        if self._setup_active:
+            self.stack.set_visible_child_name("setup")
+            self.onboarding.refresh()
+        else:
+            self._show_chat_widgets()
         if not self.win.get_visible():
             self.win.present()
         self.win.set_opacity(1.0)
         self._apply_appearance()
         self._place()
         self._fade_in()
-        self.entry.grab_focus()
+        if self._setup_active:
+            self.onboarding.focus()
+        else:
+            self.entry.grab_focus()
+
+    def _show_chat_widgets(self):
+        self.stack.set_visible_child_name("chat")
+        self.header.set_visible(True)
+        self.scroll.set_visible(True)
+        self.divider.set_visible(True)
+        self.inputbox.set_visible(True)
+        self.confirm_revealer.set_visible(True)
+        self._set_empty(not self._has_messages, animate=False)
+        self._update_empty_hint()
+        self._apply_chrome()
+
+    def open_setup(self, page=0):
+        """打开面板内的图形配置向导；不另开窗口。"""
+        self._setup_active = True
+        self.onboarding.start(page=page)
+        self.stack.set_visible_child_name("setup")
+        if not self.win.get_visible():
+            self.show()
+        else:
+            self.onboarding.refresh()
+            self.onboarding.focus()
+
+    def close_setup(self, mark_done=True):
+        """离开向导回到对话。mark_done=False 只收起，不记完成。"""
+        if mark_done:
+            self.mark_onboarding_done()
+        self._setup_active = False
+        self._show_chat_widgets()
+        if self.win is not None and self.win.get_visible():
+            self.entry.grab_focus()
+
+    def mark_onboarding_done(self):
+        if self.cfg.onboarding_done:
+            return
+        self.cfg.onboarding_done = True
+        try:
+            self._persist_config({"onboarding_done": True})
+        except OSError as exc:
+            log.warning("保存 onboarding_done 失败：%s", exc)
+
+    def _update_empty_hint(self):
+        if not self.cfg.api_key:
+            self.empty_hint.set_text(
+                "还没配置模型 · 点右上角 ⚙ 或运行 archlot --setup")
+        else:
+            self.empty_hint.set_text("执行命令 · 读写文件 · 看屏幕 · 搜网页")
 
     def hide(self):
         log.info("hide")
@@ -937,7 +1018,8 @@ class Panel:
         self._ui(self.hide)
 
     def _fade_in(self):
-        order = [self.header, self.scroll, self.inputbox]
+        order = ([self.onboarding.widget] if self._setup_active
+                 else [self.header, self.scroll, self.inputbox])
         for widget in order:
             widget.set_opacity(0.0)
         steps = 9
@@ -1107,13 +1189,16 @@ class Panel:
         self._save_geom()
 
     def _begin_drag(self, gesture, n_press, x, y):
+        self._begin_drag_from(self.header, gesture, x, y)
+
+    def _begin_drag_from(self, widget, gesture, x, y):
         surface = self.win.get_surface() if self.win else None
         if surface is None:
             return
         try:
             point = Graphene.Point()
             point.init(x, y)
-            res = self.header.compute_point(self.win, point)
+            res = widget.compute_point(self.win, point)
             pt = res[-1] if isinstance(res, tuple) else res
             device = gesture.get_current_event_device()
             surface.begin_move(device, 1, pt.x, pt.y,
@@ -1300,6 +1385,105 @@ class Panel:
                        timeout=4)
         self._park_delta = None
         self._parked = False
+
+    # ------------------------------------------------------------ 图形向导
+
+    def _read_config_raw(self):
+        try:
+            with open(CONFIG_PATH, encoding="utf-8") as f:
+                raw = json.load(f)
+            return raw if isinstance(raw, dict) else {}
+        except (OSError, json.JSONDecodeError):
+            return {}
+
+    def _persist_config(self, changes):
+        raw = self._read_config_raw()
+        out = setup_lib.update_config(raw, changes)
+        atomic_write_json(CONFIG_PATH, out)
+        try:
+            os.chmod(CONFIG_PATH, 0o600)
+        except OSError:
+            pass
+        return out
+
+    def setup_model_info(self):
+        return {
+            "api_base": self.cfg.api_base,
+            "api_key_set": bool(self.cfg.api_key),
+            "api_key_masked": setup_lib.mask_key(self.cfg.api_key),
+            "model": self.cfg.model,
+            "workspace": self.cfg.workspace,
+        }
+
+    def setup_save_model(self, api_base, api_key, model, workspace):
+        """从图形向导保存模型配置；空 key 保留现有值。"""
+        base = str(api_base or "").strip() or self.cfg.api_base
+        if not base.startswith(("http://", "https://")):
+            return {"ok": False,
+                    "error": "API 地址要以 http:// 或 https:// 开头。"}
+        name = str(model or "").strip() or self.cfg.model
+        path = str(workspace or "").strip() or self.cfg.workspace
+        path = os.path.abspath(os.path.expanduser(path))
+        try:
+            os.makedirs(path, exist_ok=True)
+        except OSError as exc:
+            return {"ok": False, "error": f"工作区创建失败：{exc}"}
+
+        key = str(api_key or "").strip()
+        changes = {"api_base": base, "model": name, "workspace": path}
+        if key:
+            changes["api_key"] = key
+        try:
+            self._persist_config(changes)
+        except OSError as exc:
+            return {"ok": False, "error": f"配置写入失败：{exc}"}
+
+        self.cfg.api_base = base
+        self.cfg.model = name
+        self.cfg.workspace = path
+        if key:
+            self.cfg.api_key = key
+        if self.agent is not None:
+            tools = getattr(self.agent, "tools", None)
+            ctx = getattr(tools, "ctx", None)
+            if ctx is not None:
+                ctx.workspace = path
+        return {
+            "ok": True,
+            "api_key_set": bool(self.cfg.api_key),
+            "api_key_masked": setup_lib.mask_key(self.cfg.api_key),
+        }
+
+    def setup_launcher(self):
+        found = shutil.which("archlot")
+        if found:
+            return found
+        argv = os.path.abspath(sys.argv[0]) if sys.argv else ""
+        if argv and os.access(argv, os.X_OK):
+            return argv
+        return str(Path(__file__).resolve().parent.parent / "bin" / "archlot")
+
+    def setup_hotkey_info(self, keys="Mod+Shift+XF86TouchpadOff"):
+        launcher = self.setup_launcher()
+        keys = str(keys or "").strip() or "Mod+Shift+XF86TouchpadOff"
+        status = setup_lib.niri_status(setup_lib.default_niri_dir(), APP_ID)
+        try:
+            block = setup_lib.managed_block(
+                APP_ID, self.appearance_niri(), keys, launcher)
+        except ValueError as exc:
+            block = ""
+            status["error"] = str(exc)
+        status.update({"keys": keys, "launcher": launcher, "block": block})
+        return status
+
+    def setup_write_hotkey(self, keys="Mod+Shift+XF86TouchpadOff"):
+        keys = str(keys or "").strip() or "Mod+Shift+XF86TouchpadOff"
+        result = setup_lib.install_hotkey(
+            setup_lib.default_niri_dir(), APP_ID, self.appearance_niri(),
+            keys, self.setup_launcher())
+        result["keys"] = keys
+        result["launcher"] = self.setup_launcher()
+        return result
 
     # ------------------------------------------------------------ 视觉
 

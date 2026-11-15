@@ -6,7 +6,10 @@
 from __future__ import annotations
 
 import os
+import shutil
 import tempfile
+import time
+from pathlib import Path
 
 MARK_BEGIN = "// >>> archlot-setup >>>"
 MARK_END = "// <<< archlot-setup <<<"
@@ -102,3 +105,89 @@ def mentions_app_id(texts, app_id):
     """任何一份 niri 配置里已经有这个 app-id 时，不再自动追加。"""
     needle = str(app_id)
     return any(needle in (text or "") for text in texts)
+
+
+# ---------------------------------------------------------------- 图形向导
+
+def default_niri_dir():
+    """niri 配置目录；测试里也可以直接传别的目录。"""
+    base = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
+    return Path(base) / "niri"
+
+
+def niri_status(folder, app_id):
+    """只读地检查 niri 配置，供图形向导显示状态。"""
+    folder = Path(folder)
+    config = folder / "config.kdl"
+    texts = []
+    try:
+        for path in sorted(folder.glob("*.kdl")):
+            try:
+                texts.append(path.read_text(encoding="utf-8"))
+            except OSError:
+                pass
+    except OSError:
+        pass
+    config_text = ""
+    if config.exists():
+        try:
+            config_text = config.read_text(encoding="utf-8")
+        except OSError:
+            pass
+    return {
+        "folder": str(folder),
+        "path": str(config),
+        "exists": config.exists(),
+        "managed": MARK_BEGIN in config_text,
+        "mentions": mentions_app_id(texts, app_id),
+    }
+
+
+def _backup_path(config):
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    backup = config.with_name(config.name + ".bak." + stamp)
+    index = 2
+    while backup.exists():
+        backup = config.with_name(config.name + ".bak." + stamp + f"-{index}")
+        index += 1
+    return backup
+
+
+def install_hotkey(folder, app_id, window_rule, keys, launcher):
+    """把 window-rule 和 Copilot 绑定写进 niri 配置。
+
+    返回 status:
+      written              已写入（backup 是备份文件名）
+      no_config            没找到 config.kdl，调用方把 block 显示给用户
+      already_configured   别的配置段已经声明了 app-id，不重复写
+      invalid              按键或路径不合法
+    """
+    try:
+        block = managed_block(app_id, window_rule, keys, launcher)
+    except ValueError as exc:
+        return {"status": "invalid", "error": str(exc), "block": ""}
+
+    status = niri_status(folder, app_id)
+    if not status["exists"]:
+        return {"status": "no_config", "block": block, **status}
+    if status["mentions"] and not status["managed"]:
+        return {"status": "already_configured", "block": block, **status}
+
+    config = Path(status["path"])
+    try:
+        text = config.read_text(encoding="utf-8")
+    except OSError as exc:
+        return {"status": "error", "error": str(exc), "block": block, **status}
+    backup = _backup_path(config)
+    try:
+        shutil.copy2(config, backup)
+        atomic_write_text(
+            str(config), upsert_block(text, block), mode=0o644)
+    except OSError as exc:
+        return {"status": "error", "error": str(exc), "block": block, **status}
+    return {
+        "status": "written",
+        "backup": backup.name,
+        "block": block,
+        **status,
+    }

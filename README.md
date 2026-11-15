@@ -116,7 +116,7 @@ cd archlot
 - 把程序装到 `~/.local/share/archlot`
 - 在 `~/.local/bin` 放 `archlot` 和 `archlot-setup`
 - 添加桌面入口和图标
-- 询问是否立即运行配置向导（`--no-setup` 可跳过）
+- 询问是否立即打开面板里的图形配置向导（`--no-setup` 可跳过）
 
 卸载只会删除自己装的文件：
 
@@ -143,39 +143,38 @@ bin/archlot --daemon     # 只驻留，不显示
 
 ## 第一次配置
 
-```bash
-archlot-setup
-```
-
-向导会先显示一页**快速上手**：Archlot 能做什么、基本按键、以及外观怎么调。
-之后分三步，全程在终端里完成，不弹窗：
-
-1. **模型**：API 地址、key、模型名、工作区；写入
-   `~/.config/archlot/config.json`（权限 600）
-2. **默认外观**：带色块预览，从预设里挑一个存成默认外观；也可以直接说
-   “透明一点”“换个青色”来细调
-3. **快捷键**：生成 Copilot 键的 niri 配置；检测到已有 Archlot 规则时不会重复写，
-   写入前会备份 `config.kdl`
-
-可以反复运行，回车保留现有值；只看教程或只改其中一项：
+第一次启动会自动在 Archlot 面板里打开配置向导；装好以后也可以随时运行：
 
 ```bash
-archlot-setup --only tutorial    # 随时重看快速上手
-archlot-setup --only model
-archlot-setup --only appearance
-archlot-setup --only hotkey
-archlot-setup --no-tutorial      # 跳过开头教程
+archlot --setup          # 已安装
+bin/archlot --setup      # 直接跑源码
 ```
 
-在源码目录里用 `bin/archlot-setup`。
+向导就是 Archlot 自己的界面，不是终端问答，也不会弹出别的窗口：
 
-> **可访问性说明：** 语义模式依赖 AT-SPI。如果会话里
-> `org.a11y.Status.IsEnabled=false`，Archlot 会明确告诉你，并退回截图模式。
-> Firefox 需要打开 `accessibility.force_enabled` 才会暴露完整的可访问性树。
+1. **快速上手**：功能展示（看 / 动 / 干 / 记）、基本按键，以及外观怎么改
+2. **模型**：API 地址、key、模型名、工作区；写入
+   `~/.config/archlot/config.json`（权限 600），保存后立即生效
+3. **外观**：预设、透明度、圆角、字号、主色、噪点、模糊开关实时预览；
+   可以把当前样子存为默认，也可以存成 `work`、`night` 等命名配置
+4. **Copilot 键**：生成并写入 niri 配置；已有 Archlot 规则时不会重复写，
+   写入前自动备份 `config.kdl`
+5. **完成**：直接开始用
+
+之后点标题栏右侧的 **⚙** 可以随时重新打开向导。没有图形会话时，
+终端向导仍可作为备用：
+
+```bash
+archlot-setup                    # 已安装；源码目录用 bin/archlot-setup
+bin/archlot-setup --only tutorial
+bin/archlot-setup --only model
+bin/archlot-setup --only appearance
+bin/archlot-setup --only hotkey
+```
 
 ## 配置模型
 
-`archlot-setup` 会引导你填好。也可以手动改
+运行 `archlot --setup`（源码目录 `bin/archlot --setup`）会引导你填好。也可以手动改
 `~/.config/archlot/config.json`（OpenAI 兼容接口，默认接 DeepSeek）：
 
 ```bash
@@ -215,6 +214,7 @@ chmod 600 ~/.config/archlot/config.json
 | `Ctrl+L` | **清空上下文**：重置本轮会话和消息列表，长期记忆保留 |
 | `Escape` | 有任务在跑就取消；有确认框就拒绝；否则收起面板 |
 | `bin/archlot --toggle` | 唤出 / 收起 |
+| `bin/archlot --setup` | 打开面板内配置向导 |
 | `bin/archlot --daemon` | 只驻留，不显示 |
 
 面板可拖标题栏移动。想让它自己改位置、尺寸、透明度，直接说
@@ -232,7 +232,7 @@ chmod 600 ~/.config/archlot/config.json
 
 ## 用 Copilot 键召唤
 
-`archlot-setup` 可以自动生成并写入下面这段（写入前会备份 niri 配置）。
+向导第 4 步（或 ⚙ → 快捷键）可以自动生成并写入下面这段（写入前会备份 niri 配置）。
 手动配置时：很多笔记本上的 Copilot 键在 Wayland 里报告为 `XF86TouchpadOff`。
 niri 按基础层符号匹配，这台机器上实测绑定写成
 `Mod+Shift+XF86TouchpadOff`，指向一个包装脚本：

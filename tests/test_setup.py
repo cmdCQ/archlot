@@ -1,9 +1,11 @@
+import json
 import os
 import stat
 import tempfile
 import unittest
 
 from core import setup
+from core.config import Config
 from ui import appearance
 
 
@@ -95,3 +97,88 @@ class AtomicWriteTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NiriInstallTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.folder = self.tmp.name
+        self.config = os.path.join(self.folder, "config.kdl")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def rule(self):
+        return appearance.niri_rule(appearance.DEFAULTS)
+
+    def test_writes_managed_block_and_backup(self):
+        with open(self.config, "w") as f:
+            f.write("// my config\nbinds {\n    Mod+Q { close-window; }\n}\n")
+        result = setup.install_hotkey(
+            self.folder, "com.cqsomt.archlot", self.rule(),
+            "Mod+Shift+XF86TouchpadOff", "/bin/archlot")
+        self.assertEqual(result["status"], "written")
+        self.assertTrue(result["backup"].startswith("config.kdl.bak."))
+        self.assertTrue(os.path.exists(os.path.join(
+            self.folder, result["backup"])))
+        with open(self.config) as f:
+            text = f.read()
+        self.assertIn(setup.MARK_BEGIN, text)
+        self.assertIn("close-window", text)
+        self.assertIn("Mod+Shift+XF86TouchpadOff", text)
+
+    def test_rewrites_its_own_block(self):
+        with open(self.config, "w") as f:
+            f.write("// config\n")
+        setup.install_hotkey(
+            self.folder, "com.cqsomt.archlot", self.rule(),
+            "Mod+A", "/bin/a")
+        result = setup.install_hotkey(
+            self.folder, "com.cqsomt.archlot", self.rule(),
+            "Mod+B", "/bin/b")
+        self.assertEqual(result["status"], "written")
+        with open(self.config) as f:
+            text = f.read()
+        self.assertEqual(text.count(setup.MARK_BEGIN), 1)
+        self.assertIn("Mod+B", text)
+        self.assertNotIn("Mod+A", text)
+
+    def test_does_not_duplicate_foreign_app_id(self):
+        with open(os.path.join(self.folder, "other.kdl"), "w") as f:
+            f.write('window-rule {\n  match app-id="com.cqsomt.archlot"\n}\n')
+        with open(self.config, "w") as f:
+            f.write("// config\n")
+        result = setup.install_hotkey(
+            self.folder, "com.cqsomt.archlot", self.rule(),
+            "Mod+A", "/bin/a")
+        self.assertEqual(result["status"], "already_configured")
+        with open(self.config) as f:
+            self.assertEqual(f.read(), "// config\n")
+
+    def test_no_config_returns_snippet(self):
+        result = setup.install_hotkey(
+            self.folder, "com.cqsomt.archlot", self.rule(),
+            "Mod+A", "/bin/a")
+        self.assertEqual(result["status"], "no_config")
+        self.assertIn("Mod+A", result["block"])
+        self.assertFalse(os.path.exists(self.config))
+
+    def test_invalid_keys_are_rejected(self):
+        result = setup.install_hotkey(
+            self.folder, "com.cqsomt.archlot", self.rule(), "Mod X", "/bin/a")
+        self.assertEqual(result["status"], "invalid")
+        self.assertTrue(result["error"])
+
+
+class ConfigOnboardingTest(unittest.TestCase):
+    def test_string_true_is_coerced(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "config.json")
+            with open(path, "w") as f:
+                json.dump({"onboarding_done": "yes"}, f)
+            self.assertTrue(Config.load(path).onboarding_done)
+
+    def test_missing_field_defaults_to_false(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "missing.json")
+            self.assertFalse(Config.load(path).onboarding_done)

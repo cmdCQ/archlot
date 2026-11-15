@@ -408,3 +408,380 @@ scrollbar slider:hover {
 .tool-card.tool-done {
     animation: cardpop 0.45s ease-out 1;
 }
+
+/* ---------------- 设置向导 ---------------- */
+
+button.gear {
+    background: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+    color: rgba(190, 184, 202, 0.42);
+    min-width: 22px;
+    min-height: 22px;
+    padding: 0;
+    margin: 0 1px;
+    font-size: 10pt;
+    transition-property: color, background-color;
+    transition-duration: 130ms;
+}
+
+button.gear:hover {
+    color: rgba(240, 237, 246, 0.85);
+    background-color: rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+}
+
+.setup-header {
+    margin: 14px 16px 2px 16px;
+}
+
+.setup-step {
+    color: rgba(190, 184, 202, 0.42);
+    font-size: 8pt;
+    letter-spacing: 0.4px;
+}
+
+.setup-dots {
+    color: rgba(185, 167, 245, 0.45);
+    font-size: 7pt;
+    letter-spacing: 3px;
+}
+
+button.setup-close {
+    background: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+    color: rgba(190, 184, 202, 0.42);
+    min-width: 24px;
+    min-height: 24px;
+    padding: 0;
+    font-size: 13pt;
+    border-radius: 6px;
+}
+
+button.setup-close:hover {
+    color: rgba(240, 237, 246, 0.92);
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.setup-body {
+    margin: 4px 16px 10px 16px;
+}
+
+.setup-title {
+    color: rgba(242, 239, 248, 0.96);
+    font-size: 15pt;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+}
+
+.setup-sub {
+    color: rgba(190, 184, 202, 0.62);
+    font-size: 9pt;
+    line-height: 1.55;
+}
+
+.setup-card {
+    background-color: rgba(255, 255, 255, 0.030);
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 12px;
+    padding: 11px 12px;
+}
+
+.setup-card-title {
+    color: rgba(228, 224, 238, 0.78);
+    font-size: 8.5pt;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.setup-feature-key {
+    color: rgba(185, 167, 245, 0.85);
+    font-size: 9pt;
+    font-weight: 600;
+}
+
+.setup-feature-text {
+    color: rgba(214, 209, 224, 0.78);
+    font-size: 9pt;
+    line-height: 1.5;
+}
+
+.setup-label {
+    color: rgba(190, 184, 202, 0.55);
+    font-size: 8pt;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+}
+
+.setup-value {
+    color: rgba(185, 167, 245, 0.78);
+    font-size: 8pt;
+}
+
+.setup-hint {
+    color: rgba(174, 169, 185, 0.52);
+    font-size: 8pt;
+    line-height: 1.45;
+}
+
+.setup-status {
+    color: rgba(150, 220, 170, 0.78);
+    font-size: 8.5pt;
+    line-height: 1.45;
+}
+
+.setup-status.setup-error {
+    color: rgba(240, 160, 158, 0.90);
+}
+
+.setup-field {
+    background-color: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 9px;
+    min-height: 32px;
+    padding: 0 8px;
+    transition-property: border-color, background-color;
+    transition-duration: 140ms;
+}
+
+.setup-field:focus-within {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(185, 167, 245, 0.28);
+}
+
+.setup-entry {
+    font-size: 9.5pt;
+    margin-left: 0;
+}
+
+.kbd {
+    color: rgba(224, 219, 234, 0.82);
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
+    font-size: 7.5pt;
+}
+
+.setup-key-desc {
+    color: rgba(214, 209, 224, 0.72);
+    font-size: 8.5pt;
+    line-height: 1.45;
+}
+
+/* 教程里的迷你面板 */
+
+.setup-mock {
+    background-color: rgba(255, 255, 255, 0.032);
+    border: 1px solid rgba(255, 255, 255, 0.060);
+    border-radius: 12px;
+    padding: 11px 12px;
+}
+
+.setup-mock-status {
+    color: rgba(150, 220, 170, 0.58);
+    font-size: 7.5pt;
+}
+
+.setup-mock-user {
+    color: rgba(242, 239, 248, 0.92);
+    background-color: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 5px 9px;
+    font-size: 8.5pt;
+}
+
+.setup-mock-text {
+    color: rgba(240, 238, 246, 0.90);
+    font-size: 8.5pt;
+    line-height: 1.45;
+}
+
+.setup-mock-tool {
+    color: rgba(228, 224, 238, 0.72);
+    font-size: 8pt;
+}
+
+.setup-mock-detail {
+    color: rgba(185, 180, 196, 0.45);
+    font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
+    font-size: 7.5pt;
+}
+
+.setup-preview {
+    background-color: rgba(255, 255, 255, 0.026);
+    border: 1px dashed rgba(185, 167, 245, 0.22);
+    border-radius: 12px;
+    padding: 10px 12px;
+}
+
+/* 预设与控件 */
+
+button.preset {
+    background-color: rgba(255, 255, 255, 0.030);
+    background-image: none;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 9px;
+    box-shadow: none;
+    padding: 7px 9px;
+    transition-property: border-color, background-color;
+    transition-duration: 130ms;
+}
+
+button.preset:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+button.preset.active {
+    border-color: rgba(185, 167, 245, 0.46);
+    background-color: rgba(185, 167, 245, 0.10);
+}
+
+.setup-preset-name {
+    color: rgba(228, 224, 238, 0.80);
+    font-size: 8.5pt;
+}
+
+button.setup-swatch {
+    background: transparent;
+    background-image: none;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: none;
+    border-radius: 99px;
+    min-width: 22px;
+    min-height: 22px;
+    padding: 0;
+    font-size: 9pt;
+}
+
+button.setup-swatch:hover {
+    background-color: rgba(185, 167, 245, 0.14);
+    border-color: rgba(185, 167, 245, 0.30);
+}
+
+button.setup-toggle {
+    background-color: rgba(255, 255, 255, 0.030);
+    background-image: none;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 7px;
+    box-shadow: none;
+    padding: 3px 10px;
+    color: rgba(214, 209, 224, 0.72);
+    font-size: 8.5pt;
+}
+
+button.setup-toggle:checked {
+    background-color: rgba(185, 167, 245, 0.16);
+    border-color: rgba(185, 167, 245, 0.36);
+    color: rgba(232, 226, 250, 0.95);
+}
+
+scale trough {
+    background-color: rgba(255, 255, 255, 0.07);
+    border-radius: 99px;
+    min-height: 3px;
+}
+
+scale highlight {
+    background-color: rgba(185, 167, 245, 0.58);
+    border-radius: 99px;
+}
+
+scale slider {
+    background-color: rgba(226, 220, 245, 0.92);
+    border: none;
+    box-shadow: none;
+    min-width: 11px;
+    min-height: 11px;
+    border-radius: 99px;
+    margin: -4px 0;
+}
+
+/* 底部导航 */
+
+.setup-footer {
+    margin: 4px 16px 14px 16px;
+}
+
+button.setup-next {
+    background-color: rgba(185, 167, 245, 0.14);
+    background-image: none;
+    border: 1px solid rgba(185, 167, 245, 0.28);
+    border-radius: 8px;
+    box-shadow: none;
+    color: rgba(232, 226, 250, 0.94);
+    padding: 4px 14px;
+    font-size: 9pt;
+    font-weight: 500;
+    transition-property: background-color, border-color;
+    transition-duration: 130ms;
+}
+
+button.setup-next:hover {
+    background-color: rgba(185, 167, 245, 0.22);
+    border-color: rgba(185, 167, 245, 0.44);
+}
+
+button.setup-next:disabled {
+    background-color: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.06);
+    color: rgba(214, 209, 224, 0.32);
+}
+
+button.setup-profile {
+    background-color: rgba(255, 255, 255, 0.030);
+    background-image: none;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 7px;
+    box-shadow: none;
+    color: rgba(214, 209, 224, 0.80);
+    padding: 3px 9px;
+    font-size: 8.5pt;
+}
+
+button.setup-profile:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+    color: rgba(240, 236, 248, 0.92);
+}
+
+button.setup-mini {
+    background: transparent;
+    background-image: none;
+    border: 1px solid transparent;
+    box-shadow: none;
+    color: rgba(190, 184, 202, 0.45);
+    padding: 2px 7px;
+    font-size: 7.5pt;
+    border-radius: 6px;
+}
+
+button.setup-mini:hover {
+    color: rgba(240, 160, 158, 0.90);
+    background-color: rgba(240, 160, 158, 0.08);
+}
+
+.setup-code {
+    color: rgba(200, 195, 214, 0.66);
+    background-color: rgba(0, 0, 0, 0.20);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 8px 9px;
+    font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
+    font-size: 7pt;
+    line-height: 1.45;
+}
+
+entry > text > selection {
+    background-color: rgba(185, 167, 245, 0.32);
+    color: rgba(248, 246, 252, 0.98);
+}
+
+entry > text > selection:focus {
+    background-color: rgba(185, 167, 245, 0.42);
+}

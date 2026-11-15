@@ -114,8 +114,8 @@ cd archlot
 ```
 
 The installer puts the app in `~/.local/share/archlot`, creates `archlot` and
-`archlot-setup` in `~/.local/bin`, adds a desktop entry and icon, then offers to run
-the setup wizard (`--no-setup` skips it).
+`archlot-setup` in `~/.local/bin`, adds a desktop entry and icon, then offers to open
+the graphical setup wizard inside Archlot (`--no-setup` skips it).
 
 Uninstall removes only what it installed:
 
@@ -142,40 +142,42 @@ bin/archlot --daemon     # stay resident without showing
 
 ## First-run setup
 
-```bash
-archlot-setup
-```
-
-The wizard opens with a **quick-start page**: what Archlot can do, the basic keys,
-and how to customize its appearance. Then three steps — no GUI popups:
-
-1. **Model**: API base, key, model name, workspace; written to
-   `~/.config/archlot/config.json` (mode 600)
-2. **Default appearance**: color swatches and presets; save one as your default look,
-   or fine-tune later by asking "a bit more transparent", "try cyan"
-3. **Hotkey**: generate the Copilot-key niri config; it skips apps that already have
-   an Archlot rule and backs up `config.kdl` before writing
-
-Re-run it anytime; empty answers keep current values. Show the tutorial or configure
-one part only:
+The first launch opens the setup wizard inside the Archlot panel. You can reopen it
+at any time:
 
 ```bash
-archlot-setup --only tutorial    # re-read the quick start
-archlot-setup --only model
-archlot-setup --only appearance
-archlot-setup --only hotkey
-archlot-setup --no-tutorial      # skip the tutorial
+archlot --setup          # installed
+bin/archlot --setup      # straight from the checkout
 ```
 
-From a checkout, use `bin/archlot-setup`.
+This is Archlot's own UI, not a terminal questionnaire and not a separate system
+dialog:
 
-> **Accessibility note:** semantic mode uses AT-SPI. If your session has
-> `org.a11y.Status.IsEnabled=false`, Archlot falls back to screenshots and tells you
-> why. For Firefox, enabling `accessibility.force_enabled` gives it a full tree.
+1. **Quick start**: what it can do (see / act / operate / remember), basic keys,
+   and how appearance customization works
+2. **Model**: API base, key, model, workspace; saved to
+   `~/.config/archlot/config.json` (mode 600) and applied immediately
+3. **Appearance**: presets, opacity, radius, font scale, accent, noise and blur
+   toggles with live preview; save the current look as the default or as named
+   profiles such as `work` and `night`
+4. **Copilot key**: generate and write the niri config; it skips files that already
+   declare Archlot and backs up `config.kdl` before writing
+5. **Done**: start using it
+
+Click the **⚙** at the right of the header to reopen the wizard. On a headless
+session, the terminal wizard remains available as a fallback:
+
+```bash
+archlot-setup                    # installed; use bin/archlot-setup from a checkout
+bin/archlot-setup --only tutorial
+bin/archlot-setup --only model
+bin/archlot-setup --only appearance
+bin/archlot-setup --only hotkey
+```
 
 ## Model configuration
 
-`archlot-setup` walks you through it. You can also edit
+`archlot --setup` (or `bin/archlot --setup` from the checkout) walks you through it. You can also edit
 `~/.config/archlot/config.json` by hand (any OpenAI-compatible endpoint; DeepSeek
 by default):
 
@@ -216,6 +218,7 @@ Restart Archlot after editing. The key stays on your machine; only model request
 | `Ctrl+L` | **Clear the context**: resets the conversation and messages; long-term memory is kept |
 | `Escape` | Cancel a running task, reject a confirmation dialog, or hide the panel |
 | `bin/archlot --toggle` | Show / hide |
+| `bin/archlot --setup` | Open the in-panel setup wizard |
 | `bin/archlot --daemon` | Stay resident without showing |
 
 Drag the header to move the panel. To let Archlot change itself, just ask —
@@ -234,8 +237,8 @@ Defaults and profiles live in `~/.config/archlot/appearance.json`.
 
 ## Summon it with the Copilot key
 
-`archlot-setup` can generate and write this for you (it backs up the niri config
-first). To do it by hand: on many laptops the Copilot key reports as
+The setup wizard can generate and write this for you (it backs up the niri
+config first). To do it by hand: on many laptops the Copilot key reports as
 `XF86TouchpadOff` under Wayland. niri matches the base-layer symbol, so bind
 `Mod+Shift+XF86TouchpadOff` to a small wrapper:
 

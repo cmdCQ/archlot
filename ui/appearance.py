@@ -72,6 +72,14 @@ _FONT_SIZES = {
     ".empty-hint": 8.5,
     ".narration": 8.5,
     "entry": 10.5,
+    ".setup-title": 15.0,
+    ".setup-sub": 9.0,
+    ".setup-feature-text": 9.0,
+    ".setup-key-desc": 8.5,
+    ".setup-label": 8.0,
+    ".setup-status": 8.5,
+    ".setup-code": 7.0,
+    ".setup-mock-text": 8.5,
 }
 
 
@@ -249,6 +257,24 @@ def css(state) -> str:
         "  100% { background-color: rgba(255, 255, 255, 0.026); }",
         "}",
         ".tool-card.tool-done { animation: archlot-cardpop 0.45s ease-out 1; }",
+        f"button.setup-next {{ background-color: {_rgba(accent, 0.14)}; "
+        f"border-color: {_rgba(accent, 0.28)}; color: {_rgba(accent, 0.95)}; }}",
+        ("button.setup-next:hover { background-color: %s; border-color: %s; }"
+         % (_rgba(accent, 0.22), _rgba(accent, 0.44))),
+        f"button.setup-toggle:checked {{ background-color: {_rgba(accent, 0.16)}; "
+        f"border-color: {_rgba(accent, 0.36)}; }}",
+        f"button.preset.active {{ border-color: {_rgba(accent, 0.46)}; "
+        f"background-color: {_rgba(accent, 0.10)}; }}",
+        f"scale highlight {{ background-color: {_rgba(accent, 0.58)}; }}",
+        f"scale slider {{ background-color: {_rgba(accent, 0.92)}; }}",
+        f".setup-dots {{ color: {_rgba(accent, 0.45)}; }}",
+        f".setup-step {{ color: {_rgba(accent, 0.55)}; }}",
+        f".setup-value {{ color: {_rgba(accent, 0.78)}; }}",
+        f".setup-feature-key {{ color: {_rgba(accent, 0.85)}; }}",
+        f".setup-field:focus-within {{ border-color: {_rgba(accent, 0.28)}; }}",
+        f"entry > text > selection {{ background-color: {_rgba(accent, 0.32)}; }}",
+        ("entry > text > selection:focus { background-color: %s; }"
+         % _rgba(accent, 0.42)),
     ]
     for selector, base in _FONT_SIZES.items():
         size = base * s["font_scale"]

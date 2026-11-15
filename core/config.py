@@ -34,6 +34,7 @@ class Config:
     adaptive_effort: bool = False
     effort_low_after: int = 3
     effort_hold_requests: int = 2
+    onboarding_done: bool = False
 
     @classmethod
     def load(cls, path: str = CONFIG_PATH) -> "Config":
@@ -50,6 +51,9 @@ class Config:
             cfg.api_key = os.environ.get("DEEPSEEK_API_KEY", "")
         if cfg.confirm_mode not in ("auto", "strict"):
             cfg.confirm_mode = "auto"
+        if not isinstance(cfg.onboarding_done, bool):
+            cfg.onboarding_done = str(cfg.onboarding_done).strip().lower() in (
+                "1", "true", "yes", "on")
         return cfg
 
 

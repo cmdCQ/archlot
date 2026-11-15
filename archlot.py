@@ -51,7 +51,9 @@ class Archlot(Gtk.Application):
     def do_command_line(self, cmdline):
         args = cmdline.get_arguments()[1:]
         self.ensure_ui()
-        if "--toggle" in args:
+        if "--setup" in args:
+            self.panel.open_setup()
+        elif "--toggle" in args:
             self.panel.toggle()
         elif "--daemon" in args:
             pass

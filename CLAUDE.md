@@ -7,6 +7,7 @@
 ```bash
 bin/archlot --toggle      # 唤出 / 收起
 bin/archlot               # 显示
+bin/archlot --setup       # 面板内图形配置向导（教程 / 模型 / 外观 / 快捷键）
 bin/archlot --daemon      # 只驻留，不显示
 
 ~/.config/archlot/config.json       # 模型配置
@@ -16,7 +17,7 @@ bin/archlot --daemon      # 只驻留，不显示
 
 ./install.sh            # 用户级安装（~/.local），--no-setup 跳过向导
 ./uninstall.sh          # 干净卸载，--purge 连配置和记忆
-bin/archlot-setup       # 配置向导：教程 / 模型 / 外观 / Copilot 键
+bin/archlot-setup       # 终端备用向导（无图形会话时）
 ```
 
 ## 架构
@@ -28,7 +29,7 @@ install.sh        用户级安装；uninstall.sh 干净卸载
 core/             config / contracts / system / llm / memory / setup
 agent/            loop / effort / history / prompts
 tools/            policy / files / desktop / a11y / recall / devices / schema
-ui/               panel / chat / markdown / sound
+ui/               panel / onboarding / chat / markdown / sound
 ```
 
 依赖单向：`archlot.py → agent / tools / ui → core`。
@@ -74,6 +75,9 @@ ui/               panel / chat / markdown / sound
 ## 视觉
 
 - 右侧竖栏，默认 380×880，贴右居中，可拖标题栏移动
+- 首次启动 / `--setup` / 标题栏 ⚙ 打开面板内向导（`ui/onboarding.py`）：
+  教程 → 模型 → 外观实时预览 → Copilot 键 → 完成；完成状态存
+  `config.json` 的 `onboarding_done`
 - 默认背景 alpha 0.8，`panel(opacity=...)` 或 `appearance(opacity=...)` 可调
 - 外观状态存在 `window.json` 的 `opacity accent background radius font_scale
   blur xray noise` 字段；默认外观和命名配置存在 `appearance.json`

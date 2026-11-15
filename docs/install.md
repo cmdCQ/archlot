@@ -27,11 +27,12 @@ cd archlot
 ./install.sh --prefix ~/apps
 ```
 
-装完会询问是否运行 `archlot-setup`。跳过用 `--no-setup`，之后随时可以再跑。
+装完会询问是否打开面板里的图形配置向导。跳过用 `--no-setup`，之后随时运行
+`archlot --setup` 或点标题栏右侧的 ⚙。
 
-向导开头是一页快速上手（功能展示 + 基本按键 + 外观说明），之后依次配置模型、
-默认外观和快捷键。`archlot-setup --only tutorial` 可随时重看，
-`--no-tutorial` 可跳过。
+向导开头是快速上手（功能展示、基本按键、外观说明），之后依次配置模型、
+外观（实时预览，可存默认和命名配置）和 Copilot 键。没有图形会话时，
+终端向导 `archlot-setup` 仍可用；源码目录里用 `bin/archlot-setup`。
 
 ### 装了哪些文件
 
@@ -39,7 +40,7 @@ cd archlot
 |---|---|
 | `~/.local/share/archlot/` | 程序和资源（含卸载脚本） |
 | `~/.local/bin/archlot` | 启动命令（软链接） |
-| `~/.local/bin/archlot-setup` | 配置向导（软链接） |
+| `~/.local/bin/archlot-setup` | 终端备用向导（软链接） |
 | `~/.local/share/applications/archlot.desktop` | 桌面入口 |
 | `~/.local/share/icons/hicolor/scalable/apps/archlot.svg` | 图标 |
 
@@ -85,7 +86,7 @@ makepkg -si
 
 程序装到 `/usr/share/archlot`，`/usr/bin/archlot` 和
 `/usr/bin/archlot-setup` 是指向它的软链接。卸载用 `pacman -R archlot-git`。
-配置仍由配置向导写入用户目录。
+配置仍由图形向导（`archlot --setup`）或终端向导写入用户目录。
 
 ## 直接跑源码
 
@@ -93,7 +94,8 @@ makepkg -si
 
 ```bash
 bin/archlot --toggle
-bin/archlot-setup
+bin/archlot --setup     # 面板内图形向导
+bin/archlot-setup       # 终端备用向导
 ```
 
 ## 常见问题
