@@ -13,7 +13,6 @@ CONFIG_DIR = os.path.expanduser("~/.config/archlot")
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 GEOM_PATH = os.path.join(CONFIG_DIR, "window.json")
 MEMORY_DIR = os.path.join(CONFIG_DIR, "memory")
-HABITS_PATH = os.path.join(MEMORY_DIR, "habits.json")
 LOG_PATH = "/tmp/archlot-app.log"
 DEFAULT_WORKSPACE = os.path.expanduser("~/archlot-workspace")
 

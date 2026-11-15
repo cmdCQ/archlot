@@ -1,4 +1,3 @@
-import os
 import tempfile
 import threading
 import time
@@ -106,9 +105,7 @@ class AgentTurnTest(unittest.TestCase):
                 on_text(msg["content"])
             return msg, finish
 
-        with mock.patch("agent.loop.llm.stream_chat", side_effect=fake_stream), \
-                mock.patch("agent.loop.HABITS_PATH",
-                           os.path.join(tmp.name, "habits.json")):
+        with mock.patch("agent.loop.llm.stream_chat", side_effect=fake_stream):
             agent = Agent(cfg, ui, tools, FakeMemory(),
                           Policy(cfg))
             agent.submit("run")
@@ -145,9 +142,7 @@ class AgentTurnTest(unittest.TestCase):
             msg, finish = responses.pop(0)
             return msg, finish
 
-        with mock.patch("agent.loop.llm.stream_chat", side_effect=fake_stream), \
-                mock.patch("agent.loop.HABITS_PATH",
-                           os.path.join(tmp.name, "habits.json")):
+        with mock.patch("agent.loop.llm.stream_chat", side_effect=fake_stream):
             agent = Agent(cfg, ui, tools, FakeMemory(), Policy(cfg))
             agent.submit("run")
             self.assertTrue(ui.done.wait(3), "turn did not finish")

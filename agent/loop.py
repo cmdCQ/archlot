@@ -7,13 +7,10 @@ from __future__ import annotations
 
 import json
 import logging
-import os
-import re
 import threading
 import time
 
 from core import llm
-from core.config import HABITS_PATH, atomic_write_json
 from core.contracts import UI, fail
 from .effort import Effort
 from .history import MessageHistory
@@ -57,7 +54,6 @@ class Agent:
         self._gen = 0
         self._busy = False
         self._queue: list[tuple[int, str]] = []
-        self._pending_nudge: str | None = None
         threading.Thread(target=self._consolidate_memory, daemon=True).start()
 
     # ---------------------------------------------------------------- 对外
@@ -96,7 +92,6 @@ class Agent:
             self._gen += 1
             self._queue.clear()
         self._cancel.set()
-        self._pending_nudge = None
         self.history.clear()
 
     # ---------------------------------------------------------------- 一轮
@@ -114,7 +109,6 @@ class Agent:
             if hasattr(self.tools, "begin_turn"):
                 self.tools.begin_turn()
             self.effort.begin_turn()
-            self._habit_check(text)
             try:
                 mem_ctx = self.memory.context_for(text) or "（暂无）"
             except Exception as exc:  # noqa: BLE001
@@ -250,9 +244,6 @@ class Agent:
             if nxt is not None:
                 self._busy = True
         if gen == self._gen:
-            if self._pending_nudge:
-                nudge, self._pending_nudge = self._pending_nudge, None
-                self.ui.notice(nudge)
             self.ui.end_turn()
         if nxt is not None:
             self._begin(nxt, self._gen, show_user=False)
@@ -283,40 +274,6 @@ class Agent:
         if hour >= 23 or hour < 6:
             return "现在是深夜，回答尽量短、语气安静。"
         return ""
-
-    # ---------------------------------------------------------------- 习惯
-
-    @staticmethod
-    def _habit_key(text: str) -> str:
-        return re.sub(r"[\s，。！？、；：,.!?;:]+", "", text.lower())[:24]
-
-    def _habit_check(self, text: str) -> None:
-        key = self._habit_key(text)
-        if not key:
-            return
-        data = {}
-        try:
-            if os.path.exists(HABITS_PATH):
-                with open(HABITS_PATH) as f:
-                    data = json.load(f)
-        except (OSError, json.JSONDecodeError):
-            data = {}
-        entry = data.setdefault(key, {"count": 0, "asked": False, "last_ask": ""})
-        entry["count"] = int(entry.get("count", 0)) + 1
-        today = time.strftime("%Y-%m-%d")
-        if (entry["count"] >= 3 and not entry.get("asked")
-                and entry.get("last_ask") != today):
-            entry["asked"] = True
-            entry["last_ask"] = today
-            self._pending_nudge = ("这个流程你做过几次了，要不要我记成固定做法？"
-                                   "说「记住这个流程」就行。")
-        try:
-            if len(data) > 80:
-                data = dict(sorted(data.items(),
-                                   key=lambda kv: -int(kv[1].get("count", 0)))[:50])
-            atomic_write_json(HABITS_PATH, data)
-        except OSError as exc:
-            log.warning("习惯记录写入失败：%s", exc)
 
     # ---------------------------------------------------------------- 自动记忆
 
