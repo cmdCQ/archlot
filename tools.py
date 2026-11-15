@@ -473,6 +473,51 @@ class Tools:
         self._press("ctrl+v")
         return {"text": f"已通过剪贴板粘贴 {len(text)} 个字符"}
 
+    def _t_panel(self, a):
+        action = str(a.get("action", "info"))
+        ui = self.ui
+        cur = ui.panel_info()
+
+        def num(key, fallback):
+            v = a.get(key)
+            return fallback if v is None else int(v)
+
+        if action == "info":
+            info = cur
+        elif action == "move":
+            info = ui.panel_move(num("x", cur["x"]), num("y", cur["y"]))
+        elif action == "resize":
+            info = ui.panel_resize(num("width", cur["width"]),
+                                   num("height", cur["height"]))
+        elif action == "set":
+            info = ui.panel_set(num("x", cur["x"]), num("y", cur["y"]),
+                                num("width", cur["width"]),
+                                num("height", cur["height"]))
+        elif action == "dock":
+            edge = str(a.get("edge", "right"))
+            size = a.get("size")
+            info = ui.panel_dock(edge, num("margin", 18),
+                                 int(size) if size is not None else None)
+        elif action == "opacity":
+            info = ui.panel_opacity(a.get("opacity", 1.0))
+        elif action == "hide":
+            ui.request_hide()
+            time.sleep(0.25)
+            cur["visible"] = False
+            info = cur
+        elif action == "show":
+            ui.request_show()
+            time.sleep(0.25)
+            info = ui.panel_info()
+        elif action == "reset":
+            info = ui.panel_reset()
+        else:
+            return {"text": f"不支持的 action：{action}"}
+        return {"text": (f"窗口 x={info['x']} y={info['y']} "
+                         f"{info['width']}x{info['height']} "
+                         f"屏幕 {info['screen_width']}x{info['screen_height']} "
+                         f"可见={info['visible']} 透明度={info['opacity']}")}
+
     def _t_press_key(self, a):
         keys = str(a.get("keys", "")).strip()
         if not keys:
@@ -648,6 +693,23 @@ TOOLS = [
             "text": {"type": "string"},
             "method": {"type": "string", "enum": ["auto", "keys", "paste"]},
         }, "required": ["text"]},
+    }},
+    {"type": "function", "function": {
+        "name": "panel",
+        "description": "控制 Archlot 自己的窗口（用户让它改布局时用）。action=info 查看；move 移动；resize 缩放；set 同时设位置和尺寸；dock 贴边停靠；opacity 设透明度；hide/show 收起或唤出；reset 恢复默认。尺寸单位是逻辑像素，屏幕 2048x1280 时默认 380x880。",
+        "parameters": {"type": "object", "properties": {
+            "action": {"type": "string",
+                       "enum": ["info", "move", "resize", "set", "dock",
+                                "opacity", "hide", "show", "reset"]},
+            "x": {"type": "integer"},
+            "y": {"type": "integer"},
+            "width": {"type": "integer"},
+            "height": {"type": "integer"},
+            "edge": {"type": "string", "enum": ["left", "right", "top", "bottom"]},
+            "margin": {"type": "integer"},
+            "size": {"type": "integer"},
+            "opacity": {"type": "number"},
+        }, "required": ["action"]},
     }},
     {"type": "function", "function": {
         "name": "press_key",

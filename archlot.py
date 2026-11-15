@@ -55,6 +55,7 @@ SYSTEM_PROMPT = """你是 Archlot，跑在用户 cqsomt 的 Arch Linux + niri �
 - 能安全合并的连续动作放在同一轮里一次做完（例如 focus_window + press_key + type_text 一起调用），减少来回；只有结果不确定时才停下来看。
 - type_text / press_key 默认 auto 就够用；但如果目标是不认键盘协议的界面（网页版远程控制台 noVNC / KVM / IPMI、部分游戏），输入会丢字或变成数字，按键也没反应，这时改用 method="keys" 走真实键码重做。
 - 判断依据：输入后截图发现字符缺失、变成数字或根本没出现，就是键盘协议不兼容，别反复重试 auto。
+- 你可以用 panel 工具调整自己的窗口：位置、尺寸、贴边停靠、透明度、收起或唤出。用户让你改自己的样子或位置时直接调，不用问。
 - 危险命令（删除、sudo、关机等）会由程序弹窗让用户确认，你不用反复口头询问。
 - 绝不编造工具结果。做不到就直说做不到。
 """
@@ -122,11 +123,13 @@ class Archlot(Gtk.Application):
     def ensure_ui(self):
         if self.win is not None:
             return
+        if not getattr(self, "geom", None):
+            self.geom = self._load_geom()
         win = Gtk.ApplicationWindow(application=self)
         win.set_title("Archlot")
         win.set_decorated(False)
         win.set_resizable(False)
-        win.set_default_size(TAB, TAB)
+        win.set_default_size(self.geom["w"], self.geom["h"])
         win.add_css_class("archlot-window")
         self.add_window(win)
         self.win = win
@@ -134,24 +137,10 @@ class Archlot(Gtk.Application):
 
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         root.add_css_class("root")
-        root.set_size_request(TAB, TAB)
+        root.set_size_request(self.geom["w"], self.geom["h"])
         win.set_child(root)
         self.root = root
-        self._expanded = False
         self._last_external = None
-
-        # 收起态：右侧小方块
-        self.tab = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.tab.add_css_class("tab")
-        self.tab.set_valign(Gtk.Align.CENTER)
-        self.tab.set_halign(Gtk.Align.CENTER)
-        tab_mark = Gtk.Label(label="\u2726")
-        tab_mark.add_css_class("tab-mark")
-        self.tab.append(tab_mark)
-        root.append(self.tab)
-        tab_click = Gtk.GestureClick()
-        tab_click.connect("pressed", lambda *_: self.show())
-        self.tab.add_controller(tab_click)
 
         # 顶部状态行
         self.header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
@@ -410,13 +399,76 @@ class Archlot(Gtk.Application):
 
     # ------------------------------------------------------------ 显示/隐藏
 
+    # ------------------------------------------------------------ 窗口几何
+
+    GEOM_PATH = os.path.expanduser("~/.config/archlot/window.json")
+
+    def _load_geom(self):
+        sw, sh = screen_size()
+        h = min(PANEL_H_MAX, int(sh) - 2 * MARGIN)
+        default = {"x": int(sw) - MARGIN - PANEL_W,
+                   "y": (int(sh) - h) // 2,
+                   "w": PANEL_W, "h": h,
+                   "opacity": 1.0}
+        try:
+            with open(self.GEOM_PATH) as f:
+                saved = json.load(f)
+            for k in ("x", "y", "w", "h", "opacity"):
+                if k in saved:
+                    default[k] = saved[k]
+        except (OSError, json.JSONDecodeError):
+            pass
+        return default
+
+    def _save_geom(self):
+        try:
+            os.makedirs(os.path.dirname(self.GEOM_PATH), exist_ok=True)
+            with open(self.GEOM_PATH, "w") as f:
+                json.dump(self.geom, f)
+        except OSError:
+            pass
+
+    def _my_window(self):
+        return next((w for w in list_windows()
+                     if w.get("app_id") == APP_ID), None)
+
+    def _move_to(self, x, y, wid=None):
+        me = self._my_window() if wid is None else {"id": wid}
+        if not me:
+            return False
+        self._save_geom()
+        pos = (me.get("layout") or {}).get("tile_pos_in_workspace_view") or [0, 0]
+        dx, dy = round(x - pos[0]), round(y - pos[1])
+        if abs(dx) >= 1 or abs(dy) >= 1:
+            run(["niri", "msg", "action", "move-floating-window",
+                 "--id", str(me["id"]), f"--x={dx:+d}", f"--y={dy:+d}"],
+                timeout=4)
+        return True
+
+    def _place(self):
+        if self.win is None or not self.win.get_visible():
+            return False
+        self.root.set_size_request(self.geom["w"], self.geom["h"])
+        GLib.timeout_add(20, lambda: self._move_to(self.geom["x"], self.geom["y"]))
+        return False
+
+    # ------------------------------------------------------------ 显示/隐藏
+
     def show(self):
         _log("show")
         self.ensure_ui()
         self._remember_external_focus()
+        self.header.set_visible(True)
+        self.scroll.set_visible(True)
+        self.divider.set_visible(True)
+        self.inputbox.set_visible(True)
+        self.confirm_revealer.set_visible(True)
+        self.empty_state.set_visible(not self.messages)
         if not self.win.get_visible():
             self.win.present()
-        self.set_expanded(True, focus=True)
+        self.win.set_opacity(self.geom.get("opacity", 1.0))
+        self._place()
+        self.entry.grab_focus()
 
     def _remember_external_focus(self):
         try:
@@ -428,12 +480,34 @@ class Archlot(Gtk.Application):
             pass
 
     def hide(self):
+        """先向右滑出屏幕，再 unmap，避免在桌面上留一个小方块。"""
         _log("hide")
-        self.collapse()
+        if self.win is None or not self.win.get_visible():
+            return
+        me = self._my_window()
+        if me:
+            pos = (me.get("layout") or {}).get("tile_pos_in_workspace_view") or [0, 0]
+            sw, _ = screen_size()
+            dx = round(sw - pos[0] + 40)
+            run(["niri", "msg", "action", "move-floating-window",
+                 "--id", str(me["id"]), f"--x={dx:+d}"], timeout=4)
+        GLib.timeout_add(150, self._unmap)
+
+    def _unmap(self):
+        if self.win is not None:
+            self.win.set_visible(False)
+        if self._last_external:
+            GLib.timeout_add(60, self._refocus_external)
+        return False
+
+    def _refocus_external(self):
+        run(["niri", "msg", "action", "focus-window",
+             "--id", str(self._last_external)], timeout=3)
+        return False
 
     def toggle(self):
-        _log(f"toggle expanded={getattr(self, '_expanded', None)}")
-        if getattr(self, "_expanded", False):
+        _log("toggle")
+        if self.win is not None and self.win.get_visible():
             self.hide()
         else:
             self.show()
@@ -450,112 +524,6 @@ class Archlot(Gtk.Application):
         if keyval == Gdk.KEY_l and (state & Gdk.ModifierType.CONTROL_MASK):
             self.clear()
             return True
-        return False
-
-    def set_expanded(self, expanded, focus=False):
-        if self.win is None:
-            return
-        self._expanded = expanded
-        if expanded:
-            threading.Thread(target=self._expand_worker, args=(focus,),
-                             daemon=True).start()
-        else:
-            GLib.idle_add(self._apply_collapse)
-        return False
-
-    def _panel_height(self, sh):
-        return min(PANEL_H_MAX, int(sh) - 2 * MARGIN)
-
-    def _expand_worker(self, focus):
-        sw, sh = screen_size()
-        h = self._panel_height(sh)
-        tx = sw - MARGIN - PANEL_W
-        ty = (sh - h) // 2
-        me = next((w for w in list_windows()
-                   if w.get("app_id") == APP_ID), None)
-        if me:
-            pos = (me.get("layout") or {}).get("tile_pos_in_workspace_view") or [0, 0]
-            dx, dy = round(tx - pos[0]), round(ty - pos[1])
-            if abs(dx) >= 1 or abs(dy) >= 1:
-                run(["niri", "msg", "action", "move-floating-window",
-                     "--id", str(me["id"]), f"--x={dx:+d}", f"--y={dy:+d}"],
-                    timeout=4)
-                time.sleep(0.02)
-        GLib.idle_add(self._apply_expand, h, focus)
-
-    def _apply_expand(self, h, focus=False):
-        self.confirm_revealer.set_visible(True)
-        self.tab.set_visible(False)
-        self.header.set_visible(True)
-        self.scroll.set_visible(True)
-        self.divider.set_visible(True)
-        self.inputbox.set_visible(True)
-        self.empty_state.set_visible(not self.messages)
-        self.msgbox.set_valign(Gtk.Align.START)
-        self.root.set_size_request(PANEL_W, h)
-        if focus:
-            self.entry.grab_focus()
-        GLib.timeout_add(60, self.relocate)
-        return False
-
-    def _apply_collapse(self):
-        self.confirm_revealer.set_visible(False)
-        self.header.set_visible(False)
-        self.scroll.set_visible(False)
-        self.divider.set_visible(False)
-        self.inputbox.set_visible(False)
-        self.tab.set_visible(True)
-        self.root.set_size_request(TAB, TAB)
-        GLib.timeout_add(30, self.relocate)
-        if self._last_external:
-            GLib.timeout_add(140, self._refocus_external)
-        return False
-
-    def _refocus_external(self):
-        run(["niri", "msg", "action", "focus-window",
-             "--id", str(self._last_external)], timeout=3)
-        return False
-
-    def relocate(self):
-        """把窗口钉在右侧（后台线程，避免卡住界面）。"""
-        if not getattr(self, "_reloc_lock", None):
-            self._reloc_lock = threading.Lock()
-        if not self._reloc_lock.acquire(blocking=False):
-            return False
-        threading.Thread(target=self._relocate_worker, daemon=True).start()
-        return False
-
-    def _relocate_worker(self):
-        try:
-            self._relocate_once()
-        finally:
-            self._reloc_lock.release()
-
-    def _relocate_once(self):
-        me = next((w for w in list_windows()
-                   if w.get("app_id") == APP_ID), None)
-        if not me:
-            return False
-        layout = me.get("layout") or {}
-        pos = layout.get("tile_pos_in_workspace_view")
-        if not pos:
-            return False
-        sw, sh = screen_size()
-        if self._expanded:
-            h = self._panel_height(sh)
-            tw, th = PANEL_W, h
-        else:
-            tw, th = TAB, TAB
-        target_x = sw - MARGIN - tw
-        target_y = (sh - th) / 2
-        dx = round(target_x - pos[0])
-        dy = round(target_y - pos[1])
-        if abs(dx) >= 1 or abs(dy) >= 1:
-            run(
-                ["niri", "msg", "action", "move-floating-window",
-                 "--id", str(me["id"]), f"--x={dx:+d}", f"--y={dy:+d}"],
-                timeout=4,
-            )
         return False
 
     def clear(self):
@@ -576,8 +544,7 @@ class Archlot(Gtk.Application):
         self.collapse()
 
     def collapse(self):
-        self._expanded = False
-        return self._apply_collapse()
+        self.hide()
 
     # ------------------------------------------------------------ 对话
 
@@ -598,7 +565,8 @@ class Archlot(Gtk.Application):
         self.spinner.start()
         self.empty_state.set_visible(False)
         self.append_user(text)
-        self.set_expanded(True)
+        if self.win is not None and not self.win.get_visible():
+            self.show()
         threading.Thread(target=self.run_agent, args=(text,), daemon=True).start()
 
     def run_agent(self, text):
@@ -721,8 +689,6 @@ class Archlot(Gtk.Application):
         self.status.set_visible(True)
         self.confirm_label.set_text(f"{title}\n{detail[:300]}")
         self.confirm_revealer.set_reveal_child(True)
-        self.set_expanded(True)
-        GLib.timeout_add(140, self.relocate)
         return False
 
     def _answer_confirm(self, ok):
@@ -733,7 +699,103 @@ class Archlot(Gtk.Application):
         self._confirm_ok = ok
         if self._confirm_event is not None:
             self._confirm_event.set()
-        GLib.timeout_add(140, self.relocate)
+
+    # ------------------------------------------------------------ 窗口自控
+
+    def request_show(self):
+        GLib.idle_add(self.show)
+
+    def request_hide(self):
+        GLib.idle_add(self.hide)
+
+    def panel_info(self):
+        me = self._my_window()
+        layout = (me or {}).get("layout") or {}
+        pos = layout.get("tile_pos_in_workspace_view") or [self.geom["x"], self.geom["y"]]
+        size = layout.get("window_size") or [self.geom["w"], self.geom["h"]]
+        sw, sh = screen_size()
+        return {
+            "x": int(pos[0]), "y": int(pos[1]),
+            "width": int(size[0]), "height": int(size[1]),
+            "screen_width": int(sw), "screen_height": int(sh),
+            "visible": bool(self.win and self.win.get_visible()),
+            "opacity": round(float(self.geom.get("opacity", 1.0)), 2),
+        }
+
+    def _apply_panel(self):
+        """在主线程应用几何变化。"""
+        if self.win is not None:
+            self.win.set_opacity(self.geom.get("opacity", 1.0))
+            w, h = self.geom["w"], self.geom["h"]
+            # 非 resizable 窗口缩小需要先把最小尺寸压到目标以下，
+            # 否则 GTK 会保留上一次的较大尺寸。
+            if w < self.root.get_width() or h < self.root.get_height():
+                self.root.set_size_request(max(1, w - 1), max(1, h - 1))
+                GLib.timeout_add(20, self._apply_panel_size)
+            else:
+                self._apply_panel_size()
+        return False
+
+    def _apply_panel_size(self):
+        self.root.set_size_request(self.geom["w"], self.geom["h"])
+        if self.win is not None and self.win.get_visible():
+            threading.Thread(
+                target=self._move_to,
+                args=(self.geom["x"], self.geom["y"]),
+                daemon=True).start()
+        return False
+
+    def _schedule_apply(self):
+        GLib.idle_add(self._apply_panel)
+
+    def panel_move(self, x, y):
+        self.geom["x"], self.geom["y"] = int(x), int(y)
+        self._save_geom()
+        self._schedule_apply()
+        return self.panel_info()
+
+    def panel_resize(self, w, h):
+        self.geom["w"], self.geom["h"] = int(w), int(h)
+        self._save_geom()
+        self._schedule_apply()
+        return self.panel_info()
+
+    def panel_set(self, x, y, w, h):
+        self.geom.update({"x": int(x), "y": int(y), "w": int(w), "h": int(h)})
+        self._save_geom()
+        self._schedule_apply()
+        return self.panel_info()
+
+    def panel_dock(self, edge, margin=18, size=None):
+        sw, sh = screen_size()
+        m = int(margin)
+        if edge in ("left", "right"):
+            w = int(size) if size else self.geom["w"]
+            h = min(self.geom["h"], int(sh) - 2 * m)
+            x = m if edge == "left" else int(sw) - m - w
+            y = (int(sh) - h) // 2
+        else:
+            h = int(size) if size else self.geom["h"]
+            w = min(self.geom["w"], int(sw) - 2 * m)
+            y = m if edge == "top" else int(sh) - m - h
+            x = (int(sw) - w) // 2
+        return self.panel_set(x, y, w, h)
+
+    def panel_opacity(self, value):
+        try:
+            v = max(0.2, min(1.0, float(value)))
+        except (TypeError, ValueError):
+            v = 1.0
+        self.geom["opacity"] = v
+        self._save_geom()
+        self._schedule_apply()
+        return self.panel_info()
+
+    def panel_reset(self):
+        sw, sh = screen_size()
+        h = min(PANEL_H_MAX, int(sh) - 2 * MARGIN)
+        return self.panel_set(int(sw) - MARGIN - PANEL_W, (int(sh) - h) // 2,
+                              PANEL_W, h)
 
     def hide_for_shot(self):
         """截图时把自己的窗口收起来，避免挡住目标或把自己的文字拍进画面。"""
