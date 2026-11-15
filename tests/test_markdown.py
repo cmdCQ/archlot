@@ -22,6 +22,22 @@ class MarkdownTest(unittest.TestCase):
         self.assertIn("print(1)", out)
         self.assertIn("monospace", out)
 
+    def test_wide_table_becomes_vertical(self):
+        out = to_markup("| name | type | note |\n"
+                        "| --- | --- | --- |\n"
+                        "| idle | fair | low weight |")
+        self.assertIn(">idle</span>", out)
+        self.assertIn(">type</span>：fair", out)
+        self.assertIn(">note</span>：low weight", out)
+        self.assertNotIn("│", out)
+
+    def test_two_column_table_keeps_columns(self):
+        out = to_markup("| key | value |\n| --- | --- |\n| a | b |")
+        self.assertIn("key", out)
+        self.assertIn("│", out)
+        self.assertIn("a", out)
+        self.assertIn("b", out)
+
 
 if __name__ == "__main__":
     unittest.main()

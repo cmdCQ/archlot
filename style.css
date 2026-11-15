@@ -7,6 +7,10 @@ window.archlot-window {
     border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.06);
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.20);
+    font-family: "Noto Sans CJK SC", "Noto Sans", sans-serif;
+    font-size: 10pt;
+    font-weight: 400;
+    letter-spacing: 0;
 }
 
 /* ---------------- 顶部状态 ---------------- */
@@ -24,9 +28,11 @@ window.archlot-window {
 }
 
 .status {
-    color: rgba(190, 184, 202, 0.48);
+    color: rgba(190, 184, 202, 0.55);
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 8pt;
+    font-weight: 500;
+    letter-spacing: 0.2px;
     margin-right: 2px;
 }
 
@@ -80,9 +86,12 @@ window.archlot-window {
 }
 
 .user-text {
-    color: rgba(242, 239, 248, 0.94);
+    color: rgba(242, 239, 248, 0.96);
     font-family: "Noto Sans CJK SC", "Noto Sans";
-    font-size: 9.8pt;
+    font-size: 10pt;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.45;
 }
 
 .assistant-block {
@@ -99,10 +108,12 @@ window.archlot-window {
 }
 
 .assistant-text {
-    color: rgba(236, 233, 242, 0.92);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.40);
+    color: rgba(240, 238, 246, 0.96);
     font-family: "Noto Sans CJK SC", "Noto Sans";
-    font-size: 10pt;
+    font-size: 10.5pt;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.58;
 }
 
 .tool-card {
@@ -127,10 +138,11 @@ window.archlot-window {
 }
 
 .tool-title {
-    color: rgba(228, 224, 238, 0.80);
+    color: rgba(228, 224, 238, 0.82);
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 8.5pt;
-    font-weight: 600;
+    font-weight: 500;
+    letter-spacing: 0;
 }
 
 .tool-status {
@@ -144,16 +156,21 @@ window.archlot-window {
 }
 
 .tool-detail {
-    color: rgba(185, 180, 196, 0.40);
+    color: rgba(185, 180, 196, 0.50);
     font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
-    font-size: 7.5pt;
+    font-size: 8pt;
+    letter-spacing: 0;
+    line-height: 1.4;
 }
 
 .notice-text {
-    color: rgba(165, 160, 176, 0.75);
+    color: rgba(174, 169, 185, 0.80);
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 9pt;
+    font-weight: 400;
     font-style: italic;
+    letter-spacing: 0;
+    line-height: 1.4;
     transition-property: opacity;
     transition-duration: 180ms;
 }
@@ -162,6 +179,9 @@ window.archlot-window {
     color: #e9a9a6;
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 9pt;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.4;
     padding: 2px 0;
     transition-property: opacity;
     transition-duration: 180ms;
@@ -199,7 +219,9 @@ entry {
     box-shadow: none;
     color: rgba(240, 237, 246, 0.94);
     font-family: "Noto Sans CJK SC", "Noto Sans";
-    font-size: 10pt;
+    font-size: 10.5pt;
+    font-weight: 400;
+    letter-spacing: 0;
     caret-color: #b9a7f5;
     margin-left: 4px;
 }
@@ -260,9 +282,12 @@ button.send:active {
 }
 
 .confirm-text {
-    color: rgba(214, 209, 224, 0.82);
+    color: rgba(214, 209, 224, 0.86);
     font-family: "Noto Sans CJK SC", "Noto Sans";
-    font-size: 9pt;
+    font-size: 9.5pt;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.45;
 }
 
 button.small {
@@ -341,9 +366,12 @@ scrollbar slider:hover {
 /* ---------------- 推理旁白 ---------------- */
 
 .narration {
-    color: rgba(172, 165, 190, 0.60);
+    color: rgba(172, 165, 190, 0.65);
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 8.5pt;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.4;
     margin: -2px 20px 6px 20px;
 }
 
