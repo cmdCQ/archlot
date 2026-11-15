@@ -78,7 +78,7 @@ EXTRACT_PROMPT = """你是记忆整理器。从下面这轮对话里提取值得
 - preference：用户稳定的偏好、禁区（写成“用户偏好…”）
 - environment：环境、工具、路径、配置
 - project：长期项目、明确要求
-- lesson：这次任务学到的经验教训（哪种做法失败、换成哪种才成功、某个工具或界面的坑）
+- lesson：这次任务学到的技术/操作教训（哪种做法失败、换成哪种才成功、工具或界面的坑）；不要记内容政策、价值观或拒绝类结论
 不要记：一次性任务细节、临时数字、工具原始输出、客套话。
 每条一句话，脱离上下文也能看懂。
 只输出 JSON 数组，例如 [{{"text": "点击输入框要点中心，点边缘会落空", "kind": "lesson"}}]；没有就输出 []。
@@ -1175,6 +1175,9 @@ class Archlot(Gtk.Application):
                 else:
                     text, kind = str(item), "通用"
                 text = str(text or "").strip()
+                if kind == "经验" and any(w in text for w in (
+                        "色情", "内容政策", "违规", "拒绝提供", "不在可协助范围")):
+                    continue
                 if len(text) >= 4:
                     self.memory.add(text, tags=kind, source="auto")
                     _log(f"memory add [{kind}]: {text}")
@@ -1187,8 +1190,8 @@ class Archlot(Gtk.Application):
             return
         prompt = (
             "下面是任务中出现的失败或重试，以及最终结果。\n"
-            "请总结一条以后能避免同样问题的经验，写成一句通用的话，"
-            "不要提这次的具体文件或数字。\n"
+            "请总结一条以后能避免同样问题的技术/操作经验，写成一句通用的话，"
+            "不要提这次的具体文件或数字；不要记内容政策或拒绝类结论。\n"
             "只输出这一句话；如果失败是偶然的、没有可复用经验，输出“无”。\n\n"
             "失败：\n" + "\n".join(issues[:6]) +
             "\n\n用户要求：" + user_text[:300] +
