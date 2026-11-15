@@ -187,7 +187,9 @@ class Archlot(Gtk.Application):
         self._cancel = threading.Event()
         self._gen = 0
         self._stream_label = None
-        self._stream_caret = None
+        self._stream_raw = ""
+        self._stream_blink = True
+        self._stream_blink_timer = 0
         self._stream_pending = ""
         self._stream_timer = 0
         self._tool_label = None
@@ -444,33 +446,56 @@ class Archlot(Gtk.Application):
         label = self._wrap_label("", "assistant-text")
         label.set_max_width_chars(32)
         block.append(label)
-        caret = Gtk.Label(label="\u258d")
-        caret.add_css_class("stream-caret")
-        block.append(caret)
-        self._stream_caret = caret
+        self._stream_raw = ""
+        self._stream_blink = True
+        self._stream_blink_timer = 0
         self._append_animated(block)
         return label
 
     def _flush_stream(self):
         self._stream_timer = 0
-        if self._stream_label is not None and self._stream_pending:
-            self._stream_label.set_label(
-                self._stream_label.get_label() + self._stream_pending)
+        if self._stream_pending and self._stream_label is not None:
+            self._stream_raw += self._stream_pending
             self._stream_pending = ""
+            self._render_stream()
             GLib.idle_add(self._scroll_bottom)
+            if not self._stream_blink_timer:
+                self._stream_blink_timer = GLib.timeout_add(
+                    520, self._blink_stream)
         return False
+
+    def _render_stream(self, caret=True):
+        if self._stream_label is None:
+            return
+        esc = GLib.markup_escape_text(self._stream_raw)
+        if caret:
+            alpha = "90%" if self._stream_blink else "0%"
+            esc += (f'<span foreground="#b9a7f5" alpha="{alpha}">\u258d</span>')
+        self._stream_label.set_markup(esc)
+
+    def _blink_stream(self):
+        if self._stream_label is None:
+            self._stream_blink_timer = 0
+            return False
+        self._stream_blink = not self._stream_blink
+        self._render_stream()
+        return True
+
+    def _stop_caret(self):
+        if self._stream_blink_timer:
+            GLib.source_remove(self._stream_blink_timer)
+            self._stream_blink_timer = 0
+        self._render_stream(caret=False)
 
     def _end_stream(self):
         if self._stream_timer:
             GLib.source_remove(self._stream_timer)
             self._stream_timer = 0
         if self._stream_pending and self._stream_label is not None:
-            self._stream_label.set_label(
-                self._stream_label.get_label() + self._stream_pending)
+            self._stream_raw += self._stream_pending
             self._stream_pending = ""
+        self._stop_caret()
         self._stream_label = None
-        if getattr(self, "_stream_caret", None) is not None:
-            self._stream_caret.set_visible(False)
 
     def note_tool(self, name, args, gen=None):
         if gen is not None and gen != self._gen:
@@ -860,6 +885,7 @@ class Archlot(Gtk.Application):
         self.messages = self.messages[cut:]
 
     def finish(self):
+        self._stop_caret()
         self.busy = False
         if getattr(self, "_status_timer", None):
             GLib.source_remove(self._status_timer)
