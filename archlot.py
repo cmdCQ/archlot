@@ -16,6 +16,7 @@ gi.require_version("Pango", "1.0")
 from gi.repository import Gdk, Gio, GLib, Graphene, Gtk, Pango  # noqa: E402
 
 import llm  # noqa: E402
+import md  # noqa: E402
 from memory import Memory  # noqa: E402
 from tools import TOOLS, Tools, list_windows, niri_json, run, screen_size  # noqa: E402
 
@@ -43,7 +44,8 @@ SYSTEM_PROMPT = """你是 Archlot，跑在用户 cqsomt 的 Arch Linux + niri �
 被问到模型身份时，只回答：我是 Archlot，底层是 DeepSeek 的 deepseek-flash 模型。不要展开猜测。
 
 回答用中文，直接、简短，不要客套话和废话。
-输出纯文本：不要用 Markdown 标记（**、#、```、表格竖线），需要强调就用普通句子。
+回复支持 Markdown：可以用粗体、列表、行内代码和代码块，界面会渲染。
+表格尽量少用；代码块标明语言。
 
 你有真正能干活的工具：执行 shell、读写文件、看屏幕、动鼠标、敲键盘、切窗口。
 
@@ -451,7 +453,6 @@ class Archlot(Gtk.Application):
     def append_assistant(self, text, gen=None):
         if gen is not None and gen != self._gen:
             return False
-        text = text.replace("`", "").replace("**", "")
         if not text:
             return False
         if self._stream_label is None:
@@ -495,11 +496,11 @@ class Archlot(Gtk.Application):
     def _render_stream(self, caret=True):
         if self._stream_label is None:
             return
-        esc = GLib.markup_escape_text(self._stream_raw)
+        body = md.to_markup(self._stream_raw)
         if caret:
             alpha = "90%" if self._stream_blink else "0%"
-            esc += (f'<span foreground="#b9a7f5" alpha="{alpha}">\u258d</span>')
-        self._stream_label.set_markup(esc)
+            body += (f'<span foreground="#b9a7f5" alpha="{alpha}">\u258d</span>')
+        self._stream_label.set_markup(body)
 
     def _blink_stream(self):
         if self._stream_label is None or not self._streaming:
