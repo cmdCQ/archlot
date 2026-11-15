@@ -36,7 +36,8 @@ ui/               panel / chat / markdown / sound
 3. **透明度作用在 `.root` 的 CSS alpha**（控件级 CssProvider），不用 `win.set_opacity`。
    `win.set_opacity` 只用于收起淡出。
 4. **截图坐标到屏幕坐标**必须浮点换算，不要 `int()` 截断。
-   截图默认 0.8 倍；小目标建议 1.0。
+   截图默认 0.8 倍、叠加 100px 网格和 200px 标签；小目标建议 1.0。
+   表单优先点第一个字段后用 Tab 串行，不要逐格猜坐标。
 5. **Pango span alpha** 用 1–65535；`0`、`0%`、`65536` 都会让整段
    `set_markup` 解析失败，流式文字会卡住。不可见用 `alpha="1"`。
 6. **niri 会夹取浮动窗口**，隐藏用“淡出 + unmap”，不要依赖位移。

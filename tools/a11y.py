@@ -275,6 +275,18 @@ def _match_window(spec):
     return None
 
 
+def _session_enabled():
+    """AT-SPI 会话总开关；None 表示查不到。"""
+    rc, out, _ = system.run(
+        ["gdbus", "call", "--session", "--dest", "org.a11y.Bus",
+         "--object-path", "/org/a11y/bus",
+         "--method", "org.freedesktop.DBus.Properties.Get",
+         "org.a11y.Status", "IsEnabled"], timeout=2)
+    if rc != 0:
+        return None
+    return "true" in out.lower()
+
+
 def _frames():
     desktop = Atspi.get_desktop(0)
     out = []
@@ -555,12 +567,22 @@ class A11y:
             return fail("没找到这个窗口；先 list_windows 看看。", "not_found")
         frame = _frame_for(window)
         if frame is None:
+            enabled = _session_enabled()
+            if enabled is False:
+                why = ("当前会话的 AT-SPI 总开关是关闭的"
+                       "（org.a11y.Status.IsEnabled=false），"
+                       "大多数应用不会暴露树；先在系统辅助功能里打开。")
+            elif enabled:
+                why = ("这个窗口没有挂到可访问性树；Firefox 需要"
+                       " accessibility.force_enabled=true，"
+                       "或用 GNOME_ACCESSIBILITY=1 启动。")
+            else:
+                why = "这个窗口没有暴露可访问性树。"
             return ok(
                 f"窗口 {window.get('app_id')}「{window.get('title')}」"
-                "没有暴露可访问性树。不要猜 ref，改用 screenshot 看屏幕；"
-                "浏览器需要开启系统辅助功能支持。",
+                f"没有可用可访问性树。{why}不要猜 ref，改用 screenshot 看屏幕。",
                 meta={"kind": "observe", "available": False,
-                      "window": window.get("id")})
+                      "a11y_session": enabled, "window": window.get("id")})
         self._snap_seq += 1
         snap = Snap(self._snap_seq, frame, window)
         text = _snapshot_text(snap)
@@ -574,7 +596,11 @@ class A11y:
 
     def apps(self, tools, a):
         self._ensure()
-        lines = []
+        enabled = _session_enabled()
+        head = ("AT-SPI 会话：开启" if enabled else
+                "AT-SPI 会话：关闭（org.a11y.Status.IsEnabled=false）"
+                if enabled is False else "AT-SPI 会话：状态未知")
+        lines = [head]
         for app in _children(Atspi.get_desktop(0)):
             child_count = _call(app, "get_child_count", default=0) or 0
             frames = []
@@ -583,8 +609,8 @@ class A11y:
                     frames.append(f"{_role(child)}:{_quote(_name(child), 60)}")
             lines.append(f"{_quote(_name(app), 60)} children={child_count} "
                          + (" ".join(frames) if frames else "(无 frame)"))
-        return ok("\n".join(lines) or "AT-SPI 里没有应用",
-                  meta={"kind": "observe"})
+        return ok("\n".join(lines),
+                  meta={"kind": "observe", "a11y_session": enabled})
 
     def click(self, tools, a):
         snap, node, err = self._resolve(a.get("snap"), a.get("ref"))

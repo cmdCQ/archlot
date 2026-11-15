@@ -127,10 +127,13 @@ class A11yTest(unittest.TestCase):
     def test_snapshot_without_tree_points_to_screenshot(self):
         window = {"id": 7, "app_id": "app", "title": "Form"}
         with mock.patch.object(a11y, "_match_window", return_value=window), \
-                mock.patch.object(a11y, "_frame_for", return_value=None):
+                mock.patch.object(a11y, "_frame_for", return_value=None), \
+                mock.patch.object(a11y, "_session_enabled", return_value=False):
             result = a11y.ui(self.tools, {"action": "snapshot"})
         self.assertTrue(result.ok)
         self.assertFalse(result.meta["available"])
+        self.assertFalse(result.meta["a11y_session"])
+        self.assertIn("AT-SPI", result.text)
         self.assertIn("screenshot", result.text)
 
     def test_frame_matching_never_borrows_another_window(self):

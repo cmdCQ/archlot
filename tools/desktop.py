@@ -10,6 +10,11 @@ from core.contracts import ToolResult, fail, ok
 from .devices import (paste_text, press_combo_uinput, press_wtype,
                       type_with_uinput)
 
+_GRID_FONTS = (
+    "/usr/share/fonts/noto/NotoSans-Regular.ttf",
+    "/usr/share/fonts/TTF/DejaVuSans.ttf",
+)
+
 
 def to_screen(x, y, image_size_value, screen_size_value):
     """截图像素 → 逻辑坐标。不要 int 截断。"""
@@ -19,6 +24,50 @@ def to_screen(x, y, image_size_value, screen_size_value):
             sw, sh = screen_size_value
             return float(x) * sw / iw, float(y) * sh / ih
     return float(x), float(y)
+
+
+def _grid_font():
+    return next((p for p in _GRID_FONTS if os.path.exists(p)), "")
+
+
+def _grid_filter(width, height):
+    """生成网格 + 坐标标签的 ffmpeg 滤镜；坐标始终是图像像素。"""
+    font = _grid_font()
+    if not font:
+        return ""
+    parts = [
+        "drawgrid=w=100:h=100:t=1:c=red@0.30",
+        "drawgrid=w=200:h=200:t=1:c=red@0.50",
+    ]
+    style = (f"fontfile={font}:fontsize=13:fontcolor=red"
+             ":box=1:boxcolor=black@0.55:boxborderw=2")
+    for x in range(0, width, 200):
+        parts.append(f"drawtext={style}:text='{x}':x={x + 2}:y=2")
+    for y in range(200, height, 200):
+        parts.append(f"drawtext={style}:text='{y}':x=2:y={y + 2}")
+    return ",".join(parts)
+
+
+def _annotate_grid(path, size):
+    """给截图叠坐标网格；缺少 ffmpeg/字体时静默退回原图。"""
+    if not size or not size[0] or not size[1]:
+        return False
+    filters = _grid_filter(size[0], size[1])
+    if not filters:
+        return False
+    out = path + ".grid.jpg"
+    rc, _, _ = system.run(
+        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+         "-i", path, "-vf", filters, "-frames:v", "1",
+         "-q:v", "4", out], timeout=15)
+    if rc != 0 or not os.path.exists(out):
+        try:
+            os.unlink(out)
+        except OSError:
+            pass
+        return False
+    os.replace(out, path)
+    return True
 
 
 def screenshot(tools, a) -> ToolResult:
@@ -46,15 +95,20 @@ def screenshot(tools, a) -> ToolResult:
         except OSError:
             pass
         return fail("截图尺寸读取失败", "screenshot")
+    gridded = False
+    if a.get("grid", True) is not False:
+        gridded = _annotate_grid(path, size)
     sw, sh = system.screen_size()
     shot = tools.add_shot(path, size, (sw, sh), scale)
+    hint = ("图上叠加了 100px 网格，边缘每 200px 有坐标标签；"
+            "坐标仍按整张图像素读。" if gridded else "")
     return ok(
         f"截图完成：frame={shot.id}，图片 {size[0]}x{size[1]}，"
-        f"逻辑屏幕 {sw}x{sh}。后续 click/move_mouse 用这张图的像素坐标，"
+        f"逻辑屏幕 {sw}x{sh}。{hint}后续 click/move_mouse 用这张图的像素坐标，"
         f"并带上 frame={shot.id}。",
         image=path,
         meta={"kind": "observe", "frame": shot.id,
-              "size": list(size), "scale": scale})
+              "size": list(size), "scale": scale, "grid": gridded})
 
 
 def _click_target(tools, a):

@@ -34,9 +34,10 @@ TOOLS = [
     }},
     {"type": "function", "function": {
         "name": "screenshot",
-        "description": "截取整个屏幕给自己看，返回 frame 编号。之后 click/move_mouse 用这张图的像素坐标，并带上 frame。",
+        "description": "截取整个屏幕给自己看，返回 frame 编号。默认叠加 100px 网格和 200px 坐标标签，读坐标时以网格为准。之后 click/move_mouse 用这张图的像素坐标，并带上 frame。",
         "parameters": {"type": "object", "properties": {
             "scale": {"type": "number", "description": "缩放，默认 0.8；看整页布局可用 0.6，越大小目标越准"},
+            "grid": {"type": "boolean", "description": "是否叠加坐标网格，默认 true；看不清内容时设 false"},
         }},
     }},
     {"type": "function", "function": {

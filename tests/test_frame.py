@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 from core import system
 from core.contracts import ToolContext
@@ -74,6 +75,13 @@ class FrameTest(unittest.TestCase):
         self.addCleanup(lambda: [os.unlink(p) for p in (a, b)
                                  if os.path.exists(p)])
         self.assertNotEqual(a, b)
+
+    def test_grid_filter_labels_image_pixels(self):
+        with mock.patch.object(desktop, "_grid_font", return_value="/font"):
+            filters = desktop._grid_filter(1638, 1024)
+        self.assertIn("drawgrid=w=100", filters)
+        self.assertIn("text='1000'", filters)
+        self.assertIn("text='800'", filters)
 
 
 if __name__ == "__main__":
