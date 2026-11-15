@@ -3,80 +3,155 @@ window.archlot-window {
 }
 
 .root {
-    background-color: alpha(#121016, 0.80);
-    border-radius: 20px;
-    border: 1px solid alpha(#d0bcff, 0.14);
-    box-shadow: inset 0 1px 0 alpha(#ffffff, 0.05);
+    background-image: linear-gradient(180deg,
+        rgba(30, 29, 38, 0.985), rgba(10, 10, 14, 0.975));
+    border-radius: 18px;
+    border: 1px solid rgba(230, 225, 240, 0.11);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07),
+                0 18px 48px rgba(0, 0, 0, 0.30);
 }
 
-scrolledwindow,
-scrolledwindow > viewport {
+/* ---------------- 收起态 ---------------- */
+
+.tab {
     background-color: transparent;
+    min-width: 56px;
+    min-height: 56px;
 }
+
+.tab-mark {
+    color: #cdbcff;
+    font-size: 15pt;
+}
+
+/* ---------------- 顶部状态 ---------------- */
+
+.header {
+    margin: 16px 20px 12px 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(217, 211, 229, 0.08);
+}
+
+.brand {
+    color: rgba(246, 243, 250, 0.78);
+    font-family: "Noto Sans CJK SC", "Noto Sans";
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 1.6px;
+}
+
+.status {
+    color: rgba(207, 200, 214, 0.52);
+    font-family: "Noto Sans CJK SC", "Noto Sans";
+    font-size: 8pt;
+    margin-right: 4px;
+}
+
+/* ---------------- 消息 ---------------- */
 
 .messages {
-    margin: 20px 22px 18px 22px;
+    margin: 8px 18px 10px 18px;
+}
+
+.empty-state {
+    margin: 22px 2px 8px 2px;
+}
+
+.empty-title {
+    color: rgba(246, 243, 250, 0.94);
+    font-family: "Noto Sans CJK SC", "Noto Sans";
+    font-size: 13pt;
+    font-weight: 600;
+}
+
+.empty-hint {
+    color: rgba(207, 200, 214, 0.48);
+    font-family: "Noto Sans CJK SC", "Noto Sans";
+    font-size: 9pt;
 }
 
 .user-bubble {
-    background-color: alpha(#d0bcff, 0.13);
-    border: 1px solid alpha(#d0bcff, 0.14);
-    border-radius: 16px;
-    padding: 9px 14px;
+    background-color: rgba(187, 169, 237, 0.13);
+    border: 1px solid rgba(216, 204, 255, 0.12);
+    border-radius: 14px 14px 5px 14px;
+    padding: 8px 12px;
+    margin-left: 24px;
 }
 
 .user-text {
     color: #f6f0ff;
-    text-shadow: 0 1px 2px alpha(#000000, 0.45);
-    font-family: "Noto Sans CJK SC", "Noto Sans";
-    font-size: 10.5pt;
-}
-
-.assistant-text {
-    color: #f0ebf4;
-    text-shadow: 0 1px 3px alpha(#000000, 0.65), 0 0 1px alpha(#000000, 0.45);
-    font-family: "Noto Sans CJK SC", "Noto Sans";
-    font-size: 11pt;
-}
-
-.assistant-name {
-    color: alpha(#d0bcff, 0.50);
-    font-size: 8pt;
-    font-weight: 700;
-}
-
-.tool-row {
-    margin-left: 6px;
-}
-
-.tool-icon {
-    color: alpha(#d0bcff, 0.55);
-    font-size: 9pt;
-}
-
-.tool-text {
-    color: #8b8494;
-    font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
-    font-size: 8.5pt;
-}
-
-.error-text {
-    background-color: alpha(#f2b8b5, 0.10);
-    border-radius: 12px;
-    padding: 8px 12px;
-    color: #f2b8b5;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
     font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 10pt;
 }
 
+.assistant-block {
+    margin-right: 4px;
+    padding: 1px 2px 2px 2px;
+}
+
+.assistant-name {
+    color: rgba(201, 186, 255, 0.55);
+    font-family: "Noto Sans CJK SC", "Noto Sans";
+    font-size: 7.5pt;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+}
+
+.assistant-text {
+    color: rgba(246, 243, 250, 0.93);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.60), 0 0 1px rgba(0, 0, 0, 0.40);
+    font-family: "Noto Sans CJK SC", "Noto Sans";
+    font-size: 10.5pt;
+}
+
+.tool-row {
+    margin: 0 2px 0 2px;
+    padding: 1px 0;
+}
+
+.tool-icon {
+    color: rgba(200, 185, 255, 0.45);
+    font-size: 7.5pt;
+}
+
+.tool-text {
+    color: rgba(201, 195, 209, 0.42);
+    font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
+    font-size: 8pt;
+}
+
+.notice-text {
+    color: rgba(169, 161, 179, 0.85);
+    font-family: "Noto Sans CJK SC", "Noto Sans";
+    font-size: 9.5pt;
+    font-style: italic;
+}
+
+.error-text {
+    background-color: rgba(242, 184, 181, 0.10);
+    border-radius: 12px;
+    padding: 8px 12px;
+    color: #f2b8b5;
+    font-family: "Noto Sans CJK SC", "Noto Sans";
+    font-size: 9.5pt;
+}
+
+/* ---------------- 输入区 ---------------- */
+
 .divider {
-    background-color: alpha(#d0bcff, 0.10);
+    background-color: rgba(217, 211, 229, 0.10);
     min-height: 1px;
     border: none;
+    margin: 0 18px 0 18px;
 }
 
 .input-bar {
-    background: transparent;
+    background-color: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(222, 215, 237, 0.14);
+    border-radius: 14px;
+    min-height: 44px;
+    margin: 10px 14px 14px 14px;
 }
 
 entry {
@@ -86,8 +161,9 @@ entry {
     box-shadow: none;
     color: #f4f0f8;
     font-family: "Noto Sans CJK SC", "Noto Sans";
-    font-size: 11.5pt;
-    caret-color: #d0bcff;
+    font-size: 10.5pt;
+    caret-color: #cdbcff;
+    margin-left: 6px;
 }
 
 entry > text {
@@ -96,7 +172,7 @@ entry > text {
 }
 
 entry > text > placeholder {
-    color: alpha(#cfc8d6, 0.40);
+    color: rgba(207, 200, 214, 0.40);
 }
 
 entry:focus,
@@ -109,46 +185,57 @@ entry:focus > text {
     outline-width: 0;
 }
 
-.arrow {
-    color: #d0bcff;
-    font-size: 15pt;
-    font-weight: bold;
+button.send {
+    background-color: rgba(187, 169, 237, 0.20);
+    color: #e9e2ff;
+    border: none;
+    box-shadow: none;
+    border-radius: 10px;
+    min-width: 30px;
+    min-height: 30px;
+    padding: 0;
+    margin-right: 7px;
+    font-size: 11pt;
+    font-weight: 700;
 }
 
+button.send:hover {
+    background-color: rgba(187, 169, 237, 0.34);
+}
+
+/* ---------------- 确认条 ---------------- */
+
 .confirm-bar {
-    background: alpha(#d0bcff, 0.09);
-    border: 1px solid alpha(#d0bcff, 0.12);
-    border-radius: 14px;
-    padding: 8px 10px;
+    background-color: rgba(208, 188, 255, 0.09);
+    border: 1px solid rgba(208, 188, 255, 0.14);
+    border-radius: 12px;
+    padding: 10px 12px;
 }
 
 .confirm-text {
     color: #cfc8d6;
+    font-family: "Noto Sans CJK SC", "Noto Sans";
     font-size: 9.5pt;
 }
 
 button.small {
-    background: alpha(#d0bcff, 0.16);
+    background-color: rgba(208, 188, 255, 0.16);
     color: #d8c8ff;
-    border-radius: 99px;
-    padding: 5px 16px;
+    border-radius: 8px;
+    padding: 4px 14px;
     font-size: 9.5pt;
     box-shadow: none;
     border: none;
 }
 
 button.small:hover {
-    background: alpha(#d0bcff, 0.28);
+    background-color: rgba(208, 188, 255, 0.28);
 }
 
-.hint {
-    color: alpha(#cfc8d6, 0.28);
-    font-size: 10pt;
-    margin-right: 2px;
-}
+/* ---------------- 其它 ---------------- */
 
 spinner {
-    color: #d0bcff;
+    color: #cdbcff;
 }
 
 scrollbar {
@@ -157,12 +244,12 @@ scrollbar {
 }
 
 scrollbar slider {
-    background: alpha(#d0bcff, 0.20);
+    background: rgba(208, 188, 255, 0.18);
     border-radius: 99px;
-    min-width: 4px;
+    min-width: 3px;
     min-height: 28px;
 }
 
 scrollbar slider:hover {
-    background: alpha(#d0bcff, 0.34);
+    background: rgba(208, 188, 255, 0.32);
 }

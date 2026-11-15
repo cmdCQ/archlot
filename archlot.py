@@ -31,10 +31,10 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 CONF_PATH = os.path.expanduser("~/.config/archlot/config.json")
 CSS_PATH = os.path.join(BASE, "style.css")
 
-IDLE_HEIGHT = 66
-OPEN_HEIGHT = 560
-BOTTOM_MARGIN = 56
-WIDTH = 900
+MARGIN = 18
+TAB = 56            # 收起态小方块
+PANEL_W = 380       # 展开态侧栏宽度
+PANEL_H_MAX = 880
 
 SYSTEM_PROMPT = """你是 Archlot，跑在用户 cqsomt 的 Arch Linux + niri 桌面上的私人 AI 助手。
 
@@ -126,7 +126,7 @@ class Archlot(Gtk.Application):
         win.set_title("Archlot")
         win.set_decorated(False)
         win.set_resizable(False)
-        win.set_default_size(WIDTH, IDLE_HEIGHT)
+        win.set_default_size(TAB, TAB)
         win.add_css_class("archlot-window")
         self.add_window(win)
         self.win = win
@@ -134,20 +134,55 @@ class Archlot(Gtk.Application):
 
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         root.add_css_class("root")
-        root.set_size_request(WIDTH, IDLE_HEIGHT)
+        root.set_size_request(TAB, TAB)
         win.set_child(root)
         self.root = root
+        self._expanded = False
+        self._last_external = None
 
+        # 收起态：右侧小方块
+        self.tab = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.tab.add_css_class("tab")
+        self.tab.set_valign(Gtk.Align.CENTER)
+        self.tab.set_halign(Gtk.Align.CENTER)
+        tab_mark = Gtk.Label(label="\u2726")
+        tab_mark.add_css_class("tab-mark")
+        self.tab.append(tab_mark)
+        root.append(self.tab)
+        tab_click = Gtk.GestureClick()
+        tab_click.connect("pressed", lambda *_: self.show())
+        self.tab.add_controller(tab_click)
+
+        # 顶部状态行
+        self.header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        self.header.add_css_class("header")
+        self.header.set_visible(False)
+        brand = Gtk.Label(label="ARCHLOT")
+        brand.add_css_class("brand")
+        brand.set_xalign(0)
+        self.status = Gtk.Label(label="")
+        self.status.add_css_class("status")
+        self.status.set_hexpand(True)
+        self.status.set_xalign(1)
+        self.spinner = Gtk.Spinner()
+        self.spinner.set_visible(False)
+        self.header.append(brand)
+        self.header.append(self.status)
+        self.header.append(self.spinner)
+        root.append(self.header)
+
+        # 对话区
         self.scroll = Gtk.ScrolledWindow()
         self.scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.scroll.set_vexpand(True)
         self.scroll.set_visible(False)
         root.append(self.scroll)
 
-        self.msgbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        self.msgbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
         self.msgbox.add_css_class("messages")
         self.msgbox.set_valign(Gtk.Align.START)
         self.scroll.set_child(self.msgbox)
+
         self._cancel = threading.Event()
         self._gen = 0
         self._stream_label = None
@@ -155,13 +190,27 @@ class Archlot(Gtk.Application):
         self._stream_timer = 0
         self._tool_label = None
 
+        # 空状态
+        self.empty_state = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        self.empty_state.add_css_class("empty-state")
+        empty_title = Gtk.Label(label="需要我做什么？")
+        empty_title.add_css_class("empty-title")
+        empty_title.set_xalign(0)
+        empty_hint = Gtk.Label(label="执行命令 · 读写文件 · 看屏幕 · 搜网页")
+        empty_hint.add_css_class("empty-hint")
+        empty_hint.set_xalign(0)
+        empty_hint.set_wrap(True)
+        self.empty_state.append(empty_title)
+        self.empty_state.append(empty_hint)
+        self.msgbox.append(self.empty_state)
+
         # 确认条
         self.confirm_revealer = Gtk.Revealer()
         self.confirm_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_UP)
-        cbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        cbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         cbox.add_css_class("confirm-bar")
-        cbox.set_margin_start(18)
-        cbox.set_margin_end(18)
+        cbox.set_margin_start(14)
+        cbox.set_margin_end(14)
         cbox.set_margin_bottom(6)
         self.confirm_label = Gtk.Label()
         self.confirm_label.set_xalign(0)
@@ -169,48 +218,40 @@ class Archlot(Gtk.Application):
         self.confirm_label.set_hexpand(True)
         self.confirm_label.add_css_class("confirm-text")
         cbox.append(self.confirm_label)
+        btns = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        btns.set_halign(Gtk.Align.END)
         yes = Gtk.Button(label="允许")
         no = Gtk.Button(label="拒绝")
         for b in (yes, no):
             b.add_css_class("small")
-            cbox.append(b)
+            btns.append(b)
         yes.connect("clicked", lambda *_: self._answer_confirm(True))
         no.connect("clicked", lambda *_: self._answer_confirm(False))
+        cbox.append(btns)
         self.confirm_revealer.set_child(cbox)
         root.append(self.confirm_revealer)
 
-        # 输入条
+        # 输入区
         self.divider = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
         self.divider.add_css_class("divider")
         self.divider.set_visible(False)
         root.append(self.divider)
 
-        bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        bar.add_css_class("input-bar")
-        bar.set_margin_start(20)
-        bar.set_margin_end(20)
-        bar.set_margin_top(12)
-        bar.set_margin_bottom(12)
-        arrow = Gtk.Label(label="›")
-        arrow.add_css_class("arrow")
+        self.inputbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        self.inputbox.add_css_class("input-bar")
+        self.inputbox.set_visible(False)
         self.entry = Gtk.Entry()
         self.entry.set_has_frame(False)
         self.entry.set_hexpand(True)
-        self.entry.set_placeholder_text("问点什么，或者让我去干点什么…")
+        self.entry.set_placeholder_text("问点什么，或者让我去做")
         self.entry.connect("activate", self.on_send)
-        self.spinner = Gtk.Spinner()
-        self.spinner.set_visible(False)
-        self.status = Gtk.Label(label="")
-        self.status.add_css_class("status")
-        self.status.set_visible(False)
-        self.hint = Gtk.Label(label="↵")
-        self.hint.add_css_class("hint")
-        bar.append(arrow)
-        bar.append(self.entry)
-        bar.append(self.status)
-        bar.append(self.hint)
-        bar.append(self.spinner)
-        root.append(bar)
+        send = Gtk.Button(label="\u2191")
+        send.add_css_class("send")
+        send.set_valign(Gtk.Align.CENTER)
+        send.connect("clicked", lambda *_: self.on_send(self.entry))
+        self.inputbox.append(self.entry)
+        self.inputbox.append(send)
+        root.append(self.inputbox)
 
         keys = Gtk.EventControllerKey()
         keys.connect("key-pressed", self.on_key)
@@ -258,11 +299,12 @@ class Archlot(Gtk.Application):
     def append_user(self, text):
         self._end_stream()
         self._tool_label = None
+        self.msgbox.set_valign(Gtk.Align.START)
         bubble = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         bubble.add_css_class("user-bubble")
         bubble.set_halign(Gtk.Align.END)
         label = self._wrap_label(text, "user-text")
-        label.set_max_width_chars(46)
+        label.set_max_width_chars(30)
         bubble.append(label)
         self.msgbox.append(bubble)
         GLib.idle_add(self._scroll_bottom)
@@ -289,7 +331,7 @@ class Archlot(Gtk.Application):
         name.add_css_class("assistant-name")
         block.append(name)
         label = self._wrap_label("", "assistant-text")
-        label.set_max_width_chars(46)
+        label.set_max_width_chars(32)
         block.append(label)
         self.msgbox.append(block)
         return label
@@ -371,18 +413,27 @@ class Archlot(Gtk.Application):
     def show(self):
         _log("show")
         self.ensure_ui()
-        self.win.present()
-        self.entry.grab_focus()
-        GLib.timeout_add(90, self.relocate)
+        self._remember_external_focus()
+        if not self.win.get_visible():
+            self.win.present()
+        self.set_expanded(True, focus=True)
+
+    def _remember_external_focus(self):
+        try:
+            for w in list_windows():
+                if w.get("is_focused") and w.get("app_id") != APP_ID:
+                    self._last_external = w["id"]
+                    return
+        except Exception:  # noqa: BLE001
+            pass
 
     def hide(self):
         _log("hide")
-        if self.win is not None:
-            self.win.set_visible(False)
+        self.collapse()
 
     def toggle(self):
-        _log(f"toggle visible={self.win.get_visible() if self.win else None}")
-        if self.win is not None and self.win.get_visible() and self.win.is_active():
+        _log(f"toggle expanded={getattr(self, '_expanded', None)}")
+        if getattr(self, "_expanded", False):
             self.hide()
         else:
             self.show()
@@ -401,42 +452,72 @@ class Archlot(Gtk.Application):
             return True
         return False
 
-    def set_expanded(self, expanded):
+    def set_expanded(self, expanded, focus=False):
         if self.win is None:
             return
+        self._expanded = expanded
         if expanded:
-            # 先移动到展开后的顶部位置，再拉长，避免先长出屏幕再跳
-            threading.Thread(target=self._expand_worker, daemon=True).start()
+            threading.Thread(target=self._expand_worker, args=(focus,),
+                             daemon=True).start()
         else:
-            self.collapse()
+            GLib.idle_add(self._apply_collapse)
         return False
 
-    def _expand_worker(self):
+    def _panel_height(self, sh):
+        return min(PANEL_H_MAX, int(sh) - 2 * MARGIN)
+
+    def _expand_worker(self, focus):
         sw, sh = screen_size()
-        me = None
-        for w in list_windows():
-            if w.get("app_id") == APP_ID:
-                me = w
-                break
+        h = self._panel_height(sh)
+        tx = sw - MARGIN - PANEL_W
+        ty = (sh - h) // 2
+        me = next((w for w in list_windows()
+                   if w.get("app_id") == APP_ID), None)
         if me:
             pos = (me.get("layout") or {}).get("tile_pos_in_workspace_view") or [0, 0]
-            target_y = sh - OPEN_HEIGHT - BOTTOM_MARGIN
-            dy = round(target_y - pos[1])
-            if abs(dy) >= 1:
+            dx, dy = round(tx - pos[0]), round(ty - pos[1])
+            if abs(dx) >= 1 or abs(dy) >= 1:
                 run(["niri", "msg", "action", "move-floating-window",
-                     "--id", str(me["id"]), f"--y={dy:+d}"], timeout=4)
-                time.sleep(0.025)
-        GLib.idle_add(self._apply_expand)
+                     "--id", str(me["id"]), f"--x={dx:+d}", f"--y={dy:+d}"],
+                    timeout=4)
+                time.sleep(0.02)
+        GLib.idle_add(self._apply_expand, h, focus)
 
-    def _apply_expand(self):
+    def _apply_expand(self, h, focus=False):
+        self.confirm_revealer.set_visible(True)
+        self.tab.set_visible(False)
+        self.header.set_visible(True)
         self.scroll.set_visible(True)
         self.divider.set_visible(True)
-        self.root.set_size_request(WIDTH, OPEN_HEIGHT)
+        self.inputbox.set_visible(True)
+        self.empty_state.set_visible(not self.messages)
+        self.msgbox.set_valign(Gtk.Align.START)
+        self.root.set_size_request(PANEL_W, h)
+        if focus:
+            self.entry.grab_focus()
+        GLib.timeout_add(60, self.relocate)
+        return False
+
+    def _apply_collapse(self):
+        self.confirm_revealer.set_visible(False)
+        self.header.set_visible(False)
+        self.scroll.set_visible(False)
+        self.divider.set_visible(False)
+        self.inputbox.set_visible(False)
+        self.tab.set_visible(True)
+        self.root.set_size_request(TAB, TAB)
         GLib.timeout_add(30, self.relocate)
+        if self._last_external:
+            GLib.timeout_add(140, self._refocus_external)
+        return False
+
+    def _refocus_external(self):
+        run(["niri", "msg", "action", "focus-window",
+             "--id", str(self._last_external)], timeout=3)
         return False
 
     def relocate(self):
-        """把浮窗钉在屏幕底部居中（后台线程，避免卡住界面）。"""
+        """把窗口钉在右侧（后台线程，避免卡住界面）。"""
         if not getattr(self, "_reloc_lock", None):
             self._reloc_lock = threading.Lock()
         if not self._reloc_lock.acquire(blocking=False):
@@ -451,21 +532,22 @@ class Archlot(Gtk.Application):
             self._reloc_lock.release()
 
     def _relocate_once(self):
-        me = None
-        for w in list_windows():
-            if w.get("app_id") == APP_ID:
-                me = w
-                break
+        me = next((w for w in list_windows()
+                   if w.get("app_id") == APP_ID), None)
         if not me:
             return False
         layout = me.get("layout") or {}
         pos = layout.get("tile_pos_in_workspace_view")
-        size = layout.get("window_size") or layout.get("tile_size")
-        if not pos or not size:
+        if not pos:
             return False
         sw, sh = screen_size()
-        target_x = (sw - size[0]) / 2
-        target_y = sh - size[1] - BOTTOM_MARGIN
+        if self._expanded:
+            h = self._panel_height(sh)
+            tw, th = PANEL_W, h
+        else:
+            tw, th = TAB, TAB
+        target_x = sw - MARGIN - tw
+        target_y = (sh - th) / 2
         dx = round(target_x - pos[0])
         dy = round(target_y - pos[1])
         if abs(dx) >= 1 or abs(dy) >= 1:
@@ -487,7 +569,6 @@ class Archlot(Gtk.Application):
         self.status.set_visible(False)
         self.spinner.stop()
         self.spinner.set_visible(False)
-        self.hint.set_visible(True)
         self.messages = []
         self._end_stream()
         self._clear_messages()
@@ -495,11 +576,8 @@ class Archlot(Gtk.Application):
         self.collapse()
 
     def collapse(self):
-        self.divider.set_visible(False)
-        self.scroll.set_visible(False)
-        self.root.set_size_request(WIDTH, IDLE_HEIGHT)
-        GLib.timeout_add(20, self.relocate)
-        return False
+        self._expanded = False
+        return self._apply_collapse()
 
     # ------------------------------------------------------------ 对话
 
@@ -516,9 +594,9 @@ class Archlot(Gtk.Application):
         self._status_timer = GLib.timeout_add(1000, self._tick_status)
         self.status.set_text("思考中 0s")
         self.status.set_visible(True)
-        self.hint.set_visible(False)
         self.spinner.set_visible(True)
         self.spinner.start()
+        self.empty_state.set_visible(False)
         self.append_user(text)
         self.set_expanded(True)
         threading.Thread(target=self.run_agent, args=(text,), daemon=True).start()
@@ -622,7 +700,6 @@ class Archlot(Gtk.Application):
         self.status.set_visible(False)
         self.spinner.stop()
         self.spinner.set_visible(False)
-        self.hint.set_visible(True)
         # 干完活把焦点收回输入框，方便接着说话
         if self.win is not None and self.win.get_visible():
             self.win.present()
@@ -697,7 +774,7 @@ class Archlot(Gtk.Application):
             return False
         layout = me.get("layout") or {}
         pos = layout.get("tile_pos_in_workspace_view") or [0, 0]
-        size = layout.get("window_size") or [WIDTH, IDLE_HEIGHT]
+        size = layout.get("window_size") or [PANEL_W, PANEL_H_MAX]
         x0, y0 = pos
         w, h = size
         if not (x0 <= x <= x0 + w and y0 <= y <= y0 + h):
