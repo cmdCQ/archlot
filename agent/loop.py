@@ -30,6 +30,11 @@ _PREFERENCE_CUES = (
 
 
 def _explicit_preference(text):
+    # 会话小结传进来的是“用户：…\n助手：…”的完整记录；
+    # 只看用户说的话，别被助手的“以后我会注意”带偏。
+    if "用户：" in text:
+        text = "\n".join(line for line in text.splitlines()
+                         if line.startswith("用户："))
     return any(cue in text for cue in _PREFERENCE_CUES)
 
 

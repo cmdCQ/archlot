@@ -75,6 +75,10 @@ class AgentTurnTest(unittest.TestCase):
         self.assertFalse(_explicit_preference("你太简短了"))
         self.assertTrue(_explicit_preference("以后回答别太简短"))
 
+    def test_preference_cue_ignores_assistant_lines(self):
+        transcript = "用户：你太简短了\n助手：以后我会注意"
+        self.assertFalse(_explicit_preference(transcript))
+
     def test_tool_turn_keeps_history_paired(self):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
