@@ -37,6 +37,15 @@ def to_markup(text):
     in_code = False
     for line in str(text).split("\n"):
         stripped = line.strip()
+        if not in_code and re.fullmatch(r"([-*_])\1{2,}", stripped):
+            out.append('<span foreground="#6b6678">' + "─" * 18 + "</span>")
+            continue
+        if not in_code and stripped.startswith("|") and stripped.endswith("|"):
+            cells = [c.strip() for c in stripped.strip("|").split("|")]
+            if all(re.fullmatch(r":?-{2,}:?", c) for c in cells):
+                continue
+            out.append("   ".join(_inline(c) for c in cells))
+            continue
         if stripped.startswith("```"):
             in_code = not in_code
             continue

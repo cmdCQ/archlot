@@ -52,6 +52,7 @@ SYSTEM_PROMPT = """你是 Archlot，跑在用户 cqsomt 的 Arch Linux + niri �
 
 下面是关于用户和以往工作的长期记忆，可能为空：
 {memory}
+- 记忆可能过时：如果记忆里的偏好和用户当前的要求冲突，以当前要求为准，并顺手更新记忆（forget 旧条目、add 新条目）。
 - 遇到值得长期记住的信息（稳定偏好、环境、长期项目、明确要求），用 memory(action="add") 记下来，不要记一次性细节。
 - 踩坑后换一种做法才成功时（点偏了、命令失败、工具不兼容），用 memory(action="add", tags="经验") 记一条可复用的教训。
 - 用户说“忘掉…”时，用 memory(action="forget")。
