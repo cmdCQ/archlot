@@ -49,7 +49,8 @@
 - 内容最小尺寸约 172×110；`_apply_chrome()` 会在小尺寸时隐藏标题行和空状态
 
 ### 3.3 透明度
-- 控件级 `Gtk.CssProvider` 挂在 `root` 上，覆盖 `.root { background-color: rgba(17,17,22,a) }`
+- display 级 `Gtk.CssProvider`（USER 优先级）覆盖 `.root { background-color: rgba(17,17,22,a) }`
+- 控件级 provider 在 GTK4 里只作用于控件本身，不会传给按钮/滑杆等子控件
 - `panel(action="opacity", opacity=1.0)` 设的是这个 alpha；1.0 完全不透明
 - `win.set_opacity` 只用于淡出动画，不要混用
 

@@ -42,7 +42,8 @@ ui/               panel / onboarding / chat / markdown / sound
 1. **GTK 只在 `ui/` 里碰。** 跨线程走 `UI` 端口，`Panel` 自己切主线程。
    主线程不跑 niri / grim / shell 子进程。
 2. **窗口尺寸非 resizable。** `root.set_size_request(w, h)`；缩小前先把最小尺寸压到目标以下。
-3. **透明度作用在 `.root` 的 CSS alpha**（控件级 CssProvider），不用 `win.set_opacity`。
+3. **透明度作用在 `.root` 的 CSS alpha**（display 级 CssProvider，USER 优先级），不用 `win.set_opacity`。
+   控件级 provider 不会把样式传给子控件，主色/滑杆/页签会失效。
    `win.set_opacity` 只用于收起淡出。
 4. **截图坐标到屏幕坐标**必须浮点换算，不要 `int()` 截断。
    截图默认 0.8 倍、叠加 100px 网格和 200px 标签；小目标建议 1.0。

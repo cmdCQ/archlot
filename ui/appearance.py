@@ -1,7 +1,7 @@
 """面板外观：校验、预设、CSS 和 niri window-rule 生成。
 
 这里不 import gi，也不碰控件；只把一份外观状态变成字符串。
-真正的应用在 panel.py 里通过控件级 CssProvider 完成。
+真正的应用在 panel.py 里通过 display 级 CssProvider 完成。
 """
 
 from __future__ import annotations
@@ -227,7 +227,7 @@ def _rgba(color, alpha):
 
 
 def css(state) -> str:
-    """生成覆盖 style.css 的控件级样式。"""
+    """生成覆盖 style.css 的动态样式（USER 优先级）。"""
     s = normalize(state)
     accent = s["accent"]
     lines = [

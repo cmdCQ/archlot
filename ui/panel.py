@@ -203,9 +203,12 @@ class Panel:
         self.chat_page.set_vexpand(True)
         self.stack.add_named(self.chat_page, "chat")
         main = self.chat_page
+        # 控件级 provider 在 GTK4 里只作用于该控件本身，不会传给子控件；
+        # 主色要落到按钮、滑杆、页签上，必须挂到 display。
         self._appearance_provider = Gtk.CssProvider()
-        root.get_style_context().add_provider(
-            self._appearance_provider, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(), self._appearance_provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_USER)
         self._apply_appearance()
 
         # 顶部状态行
@@ -230,17 +233,22 @@ class Panel:
         self.gear.set_tooltip_text("设置模型、外观与快捷键")
         self.gear.set_valign(Gtk.Align.CENTER)
         self.gear.connect("clicked", lambda *_: self.open_settings())
-        self.header.append(brand)
-        self.header.append(self.thinking_dot)
-        self.header.append(self.status)
+        # 拖拽手势只挂在这块空白区上，⚙ 和 spinner 留在外面，
+        # 否则父容器的 GestureClick 会把它们的点击吞掉。
+        self.drag_area = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        self.drag_area.set_hexpand(True)
+        self.drag_area.append(brand)
+        self.drag_area.append(self.thinking_dot)
+        self.drag_area.append(self.status)
+        self.header.append(self.drag_area)
         self.header.append(self.gear)
         self.header.append(self.spinner)
 
         press = Gtk.GestureClick()
         press.set_button(1)
         press.connect("pressed", self._begin_drag)
-        self.header.add_controller(press)
-        self.header.set_cursor_from_name("grab")
+        self.drag_area.add_controller(press)
+        self.drag_area.set_cursor_from_name("grab")
         main.append(self.header)
 
         # 推理旁白
@@ -1205,7 +1213,7 @@ class Panel:
         self._save_geom()
 
     def _begin_drag(self, gesture, n_press, x, y):
-        self._begin_drag_from(self.header, gesture, x, y)
+        self._begin_drag_from(self.drag_area, gesture, x, y)
 
     def _begin_drag_from(self, widget, gesture, x, y):
         surface = self.win.get_surface() if self.win else None

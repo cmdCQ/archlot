@@ -782,12 +782,20 @@ class Onboarding:
 
     def _mark_preset_active(self):
         state = self.panel.appearance_info()
+        matched = None
         for name, button in self._preset_buttons.items():
             preset = appearance.normalize(appearance.PRESETS[name])
             if _same_look(state, preset):
                 button.add_css_class("active")
+                matched = matched or name
             else:
                 button.remove_css_class("active")
+        status = getattr(self, "appearance_status", None)
+        if status is not None:
+            self._status(
+                status,
+                (f"已套用「{PRESET_LABELS.get(matched, matched)}」预设。"
+                 if matched else "自定义外观。"))
 
     def _preset(self, name):
         info = self.panel.appearance_preset(name)
