@@ -190,6 +190,7 @@ class Archlot(Gtk.Application):
         self._stream_raw = ""
         self._stream_blink = True
         self._stream_blink_timer = 0
+        self._streaming = False
         self._stream_pending = ""
         self._stream_timer = 0
         self._tool_label = None
@@ -430,6 +431,7 @@ class Archlot(Gtk.Application):
             return False
         if self._stream_label is None:
             self._stream_label = self._new_assistant_block()
+        self._streaming = True
         self._stream_pending += text
         if not self._stream_timer:
             self._stream_timer = GLib.timeout_add(40, self._flush_stream)
@@ -449,6 +451,7 @@ class Archlot(Gtk.Application):
         self._stream_raw = ""
         self._stream_blink = True
         self._stream_blink_timer = 0
+        self._streaming = False
         self._append_animated(block)
         return label
 
@@ -457,9 +460,9 @@ class Archlot(Gtk.Application):
         if self._stream_pending and self._stream_label is not None:
             self._stream_raw += self._stream_pending
             self._stream_pending = ""
-            self._render_stream()
+            self._render_stream(caret=self._streaming)
             GLib.idle_add(self._scroll_bottom)
-            if not self._stream_blink_timer:
+            if self._streaming and not self._stream_blink_timer:
                 self._stream_blink_timer = GLib.timeout_add(
                     520, self._blink_stream)
         return False
@@ -474,8 +477,9 @@ class Archlot(Gtk.Application):
         self._stream_label.set_markup(esc)
 
     def _blink_stream(self):
-        if self._stream_label is None:
+        if self._stream_label is None or not self._streaming:
             self._stream_blink_timer = 0
+            self._render_stream(caret=False)
             return False
         self._stream_blink = not self._stream_blink
         self._render_stream()
@@ -487,47 +491,98 @@ class Archlot(Gtk.Application):
             self._stream_blink_timer = 0
         self._render_stream(caret=False)
 
-    def _end_stream(self):
+    def _flush_pending(self):
         if self._stream_timer:
             GLib.source_remove(self._stream_timer)
             self._stream_timer = 0
         if self._stream_pending and self._stream_label is not None:
             self._stream_raw += self._stream_pending
-            self._stream_pending = ""
+        self._stream_pending = ""
+
+    def _end_stream(self):
+        self._streaming = False
+        self._flush_pending()
         self._stop_caret()
         self._stream_label = None
+
+    TOOL_LABELS = {
+        "run_shell": "终端", "screenshot": "截屏", "click": "点击",
+        "type_text": "输入", "press_key": "按键", "move_mouse": "移动鼠标",
+        "scroll": "滚动", "list_windows": "窗口列表", "focus_window": "切换窗口",
+        "read_file": "读取文件", "write_file": "写入文件", "list_dir": "目录",
+        "panel": "调整窗口",
+    }
+
+    def _tool_preview(self, name, args):
+        try:
+            if name == "run_shell":
+                return str(args.get("command", "")).replace("\n", " ⏎ ")
+            if name == "click":
+                return f"({args.get('x')}, {args.get('y')})"
+            if name == "type_text":
+                return str(args.get("text", ""))
+            if name == "press_key":
+                return str(args.get("keys", ""))
+            if name in ("read_file", "write_file", "list_dir"):
+                return str(args.get("path", ""))
+            if name == "panel":
+                return str(args.get("action", ""))
+            if name == "focus_window":
+                return f"窗口 {args.get('id')}"
+            return json.dumps(args, ensure_ascii=False)[:80]
+        except Exception:  # noqa: BLE001
+            return ""
 
     def note_tool(self, name, args, gen=None):
         if gen is not None and gen != self._gen:
             return False
         self._end_stream()
-        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        row.add_css_class("tool-row")
-        icon = Gtk.Label(label="⚙")
-        icon.add_css_class("tool-icon")
-        text = Gtk.Label(label=name)
-        text.add_css_class("tool-text")
-        text.set_ellipsize(Pango.EllipsizeMode.END)
-        text.set_hexpand(True)
-        text.set_xalign(0)
-        row.append(icon)
-        row.append(text)
-        self._append_animated(row, slide=False, duration=150)
-        self._tool_label = text
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
+        card.add_css_class("tool-card")
+        top = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=7)
+        dot = Gtk.Box()
+        dot.add_css_class("tool-dot")
+        dot.set_valign(Gtk.Align.CENTER)
+        title = Gtk.Label(label=self.TOOL_LABELS.get(name, name))
+        title.add_css_class("tool-title")
+        title.set_xalign(0)
+        status = Gtk.Label(label="")
+        status.add_css_class("tool-status")
+        status.set_hexpand(True)
+        status.set_xalign(1)
+        top.append(dot)
+        top.append(title)
+        top.append(status)
+        card.append(top)
+        detail = Gtk.Label(label=self._tool_preview(name, args))
+        detail.add_css_class("tool-detail")
+        detail.set_xalign(0)
+        detail.set_ellipsize(Pango.EllipsizeMode.END)
+        detail.set_max_width_chars(40)
+        card.append(detail)
+        self._append_animated(card, slide=False, duration=150)
+        self._tool_card = {"dot": dot, "status": status, "detail": detail,
+                           "base": self._tool_preview(name, args)}
+        self._tool_label = detail
         self._scroll_bottom()
         return False
 
     def note_result(self, text, gen=None):
         if gen is not None and gen != self._gen:
             return False
-        if self._tool_label is None:
+        card = getattr(self, "_tool_card", None)
+        if not card or self._tool_label is None:
             return False
-        first = (text or "").strip().splitlines()
-        line = first[0] if first else ""
-        if len(line) > 60:
-            line = line[:60] + "…"
+        lines = (text or "").strip().splitlines()
+        line = lines[0] if lines else ""
+        ok = not (line.startswith("exit=") and line != "exit=0")
+        card["status"].set_text("✓" if ok else "✗")
+        card["status"].add_css_class("tool-ok" if ok else "tool-err")
+        card["dot"].add_css_class("tool-dot-done")
+        if len(line) > 48:
+            line = line[:48] + "…"
         if line:
-            self._tool_label.set_label(self._tool_label.get_label() + "  ·  " + line)
+            card["detail"].set_label(f"{card['base']}  ·  {line}")
         return False
 
     def append_error(self, text, gen=None):
@@ -885,6 +940,8 @@ class Archlot(Gtk.Application):
         self.messages = self.messages[cut:]
 
     def finish(self):
+        self._streaming = False
+        self._flush_pending()
         self._stop_caret()
         self.busy = False
         if getattr(self, "_status_timer", None):

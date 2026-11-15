@@ -105,17 +105,46 @@ window.archlot-window {
     font-size: 10pt;
 }
 
-.tool-row {
-    margin: 0 2px 0 2px;
+.tool-card {
+    background-color: rgba(255, 255, 255, 0.026);
+    border: 1px solid rgba(255, 255, 255, 0.045);
+    border-radius: 10px;
+    padding: 7px 10px;
+    margin: -2px 2px;
 }
 
-.tool-icon {
-    color: rgba(185, 167, 245, 0.30);
-    font-size: 7pt;
+.tool-dot {
+    min-width: 6px;
+    min-height: 6px;
+    border-radius: 99px;
+    background-color: #b9a7f5;
+    animation: dot-pulse 1.3s ease-in-out infinite;
 }
 
-.tool-text {
-    color: rgba(185, 180, 196, 0.34);
+.tool-dot-done {
+    animation: none;
+    background-color: rgba(150, 220, 170, 0.55);
+}
+
+.tool-title {
+    color: rgba(228, 224, 238, 0.80);
+    font-family: "Noto Sans CJK SC", "Noto Sans";
+    font-size: 8.5pt;
+    font-weight: 600;
+}
+
+.tool-status {
+    font-family: "Noto Sans CJK SC", "Noto Sans";
+    font-size: 8pt;
+    color: rgba(150, 220, 170, 0.70);
+}
+
+.tool-status.tool-err {
+    color: rgba(240, 160, 158, 0.85);
+}
+
+.tool-detail {
+    color: rgba(185, 180, 196, 0.40);
     font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
     font-size: 7.5pt;
 }
