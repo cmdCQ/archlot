@@ -520,7 +520,8 @@ class Tools:
         return {"text": (f"窗口 x={info['x']} y={info['y']} "
                          f"{info['width']}x{info['height']} "
                          f"屏幕 {info['screen_width']}x{info['screen_height']} "
-                         f"可见={info['visible']} 透明度={info['opacity']}")}
+                         f"可见={info['visible']} 透明度={info['opacity']} "
+                         f"内容最小={info.get('min_width')}x{info.get('min_height')}")}
 
     def _t_press_key(self, a):
         keys = str(a.get("keys", "")).strip()

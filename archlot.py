@@ -141,6 +141,7 @@ class Archlot(Gtk.Application):
         win.set_child(root)
         self.root = root
         self._last_external = None
+        self._min_size = (0, 0)
 
         # 顶部状态行
         self.header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
@@ -232,6 +233,7 @@ class Archlot(Gtk.Application):
         self.entry = Gtk.Entry()
         self.entry.set_has_frame(False)
         self.entry.set_hexpand(True)
+        self.entry.set_width_chars(1)
         self.entry.set_placeholder_text("问点什么，或者让我去做")
         self.entry.connect("activate", self.on_send)
         send = Gtk.Button(label="\u2191")
@@ -473,6 +475,7 @@ class Archlot(Gtk.Application):
         self.inputbox.set_visible(True)
         self.confirm_revealer.set_visible(True)
         self.empty_state.set_visible(not self.messages)
+        self._apply_chrome()
         if not self.win.get_visible():
             self.win.present()
         self.win.set_opacity(self.geom.get("opacity", 1.0))
@@ -746,8 +749,10 @@ class Archlot(Gtk.Application):
             "x": int(pos[0]), "y": int(pos[1]),
             "width": int(size[0]), "height": int(size[1]),
             "screen_width": int(sw), "screen_height": int(sh),
-            "visible": bool(self.win and self.win.get_visible()),
+            "visible": bool(me),
             "opacity": round(float(self.geom.get("opacity", 1.0)), 2),
+            "min_width": self._min_size[0],
+            "min_height": self._min_size[1],
         }
 
     def _apply_panel(self):
@@ -755,6 +760,8 @@ class Archlot(Gtk.Application):
         if self.win is not None:
             self.win.set_opacity(self.geom.get("opacity", 1.0))
             w, h = self.geom["w"], self.geom["h"]
+            # 小尺寸时先收起占地方的装饰，最小尺寸才能真的降下来
+            self._apply_chrome()
             # 非 resizable 窗口缩小需要先把最小尺寸压到目标以下，
             # 否则 GTK 会保留上一次的较大尺寸。
             if w < self.root.get_width() or h < self.root.get_height():
@@ -764,8 +771,19 @@ class Archlot(Gtk.Application):
                 self._apply_panel_size()
         return False
 
+    def _apply_chrome(self):
+        w, h = self.geom["w"], self.geom["h"]
+        self.header.set_visible(h >= 160)
+        self.empty_state.set_visible(not self.messages and h >= 240)
+        narrow = w < 200
+        for side in ("start", "end"):
+            getattr(self.inputbox, f"set_margin_{side}")(
+                6 if narrow else 14)
+
     def _apply_panel_size(self):
         self.root.set_size_request(self.geom["w"], self.geom["h"])
+        mn = self.root.get_preferred_size()[0]
+        self._min_size = (int(mn.width), int(mn.height))
         if self.win is not None and self.win.get_visible():
             threading.Thread(
                 target=self._move_to,
