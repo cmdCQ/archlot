@@ -151,7 +151,7 @@ window.archlot-window {
     background-color: rgba(255, 255, 255, 0.035);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 12px;
-    min-height: 40px;
+    min-height: 32px;
     margin: 8px 14px 12px 14px;
     transition-property: border-color, background-color;
     transition-duration: 150ms;
@@ -276,4 +276,18 @@ scrollbar slider {
 
 scrollbar slider:hover {
     background-color: rgba(255, 255, 255, 0.18);
+}
+
+/* 流式输出时的光标 */
+.stream-caret {
+    color: rgba(185, 167, 245, 0.85);
+    font-size: 10pt;
+    margin-top: -2px;
+    animation: caret-blink 1.1s ease-in-out infinite;
+}
+
+@keyframes caret-blink {
+    0%   { opacity: 0.05; }
+    45%  { opacity: 0.95; }
+    100% { opacity: 0.05; }
 }

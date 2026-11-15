@@ -187,6 +187,7 @@ class Archlot(Gtk.Application):
         self._cancel = threading.Event()
         self._gen = 0
         self._stream_label = None
+        self._stream_caret = None
         self._stream_pending = ""
         self._stream_timer = 0
         self._tool_label = None
@@ -279,6 +280,8 @@ class Archlot(Gtk.Application):
 
     def _sync_geom_from_window(self):
         if self.win is None or not self.win.get_visible():
+            return
+        if getattr(self, "_hiding", False):
             return
         me = self._my_window()
         if not me:
@@ -441,6 +444,10 @@ class Archlot(Gtk.Application):
         label = self._wrap_label("", "assistant-text")
         label.set_max_width_chars(32)
         block.append(label)
+        caret = Gtk.Label(label="\u258d")
+        caret.add_css_class("stream-caret")
+        block.append(caret)
+        self._stream_caret = caret
         self._append_animated(block)
         return label
 
@@ -462,6 +469,8 @@ class Archlot(Gtk.Application):
                 self._stream_label.get_label() + self._stream_pending)
             self._stream_pending = ""
         self._stream_label = None
+        if getattr(self, "_stream_caret", None) is not None:
+            self._stream_caret.set_visible(False)
 
     def note_tool(self, name, args, gen=None):
         if gen is not None and gen != self._gen:
@@ -651,8 +660,15 @@ class Archlot(Gtk.Application):
         _log("hide")
         if self.win is None or not self.win.get_visible():
             return
-        # 只做淡出：niri 的位移动画和 unmap 很难对齐，中途消失就会“卡一下”。
-        # 透明度由合成器逐帧处理，淡完再 unmap 是最稳的。
+        # 往右让一点点再淡出：下次唤出时从右侧滑回来，动作更连贯。
+        me = self._my_window()
+        if me:
+            threading.Thread(
+                target=run,
+                args=(["niri", "msg", "action", "move-floating-window",
+                       "--id", str(me["id"]), "--x=+44"],),
+                kwargs={"timeout": 4},
+                daemon=True).start()
         self._hiding = True
         self._fade_step = 0
         GLib.timeout_add(16, self._fade_out)
@@ -662,8 +678,8 @@ class Archlot(Gtk.Application):
             return False
         self._fade_step += 1
         base = float(self.geom.get("opacity", 1.0))
-        self.win.set_opacity(base * max(0.0, 1.0 - self._fade_step / 9.0))
-        if self._fade_step >= 9:
+        self.win.set_opacity(base * max(0.0, 1.0 - self._fade_step / 12.0))
+        if self._fade_step >= 12:
             self._unmap()
             return False
         return True
@@ -952,20 +968,29 @@ class Archlot(Gtk.Application):
                 6 if narrow else 14)
 
     def _fade_in(self):
-        widgets = [self.header, self.scroll, self.inputbox]
-        for w in widgets:
+        """标题、消息、输入条错开 40ms 依次淡入，比整体一起亮更有层次。"""
+        order = [self.header, self.scroll, self.inputbox]
+        for w in order:
             w.set_opacity(0.0)
-        steps = 12
+        steps = 9
 
-        def tick(i=[0]):
-            i[0] += 1
-            t = min(1.0, i[0] / steps)
-            e = 1 - (1 - t) ** 3
-            for w in widgets:
-                w.set_opacity(e)
-            return i[0] < steps
+        def run_one(w, delay):
+            def start():
+                i = [0]
 
-        GLib.timeout_add(16, tick)
+                def tick():
+                    i[0] += 1
+                    t = min(1.0, i[0] / steps)
+                    w.set_opacity(1 - (1 - t) ** 3)
+                    return i[0] < steps
+
+                GLib.timeout_add(16, tick)
+                return False
+
+            GLib.timeout_add(delay, start)
+
+        for idx, w in enumerate(order):
+            run_one(w, idx * 45)
 
     def _apply_panel_size(self):
         self.root.set_size_request(self.geom["w"], self.geom["h"])
