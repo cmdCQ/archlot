@@ -206,6 +206,13 @@ class Archlot(Gtk.Application):
         self.scroll.set_visible(False)
         root.append(self.scroll)
 
+        self._stick_bottom = True
+        self._scroll_programmatic = False
+        adj = self.scroll.get_vadjustment()
+        if adj is not None:
+            adj.connect("changed", self._on_scroll_changed)
+            adj.connect("value-changed", self._on_scroll_value)
+
         self.msgbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
         self.msgbox.add_css_class("messages")
         self.msgbox.set_valign(Gtk.Align.END)
@@ -345,6 +352,17 @@ class Archlot(Gtk.Application):
         self.status.set_text("正在停止…")
         self.status.set_visible(True)
 
+    def _on_scroll_changed(self, adj):
+        """内容高度变化时，如果用户没往上翻，就一直贴住底部。"""
+        if getattr(self, "_stick_bottom", True):
+            self._scroll_bottom()
+
+    def _on_scroll_value(self, adj):
+        if getattr(self, "_scroll_programmatic", False):
+            return
+        maxv = max(0.0, adj.get_upper() - adj.get_page_size())
+        self._stick_bottom = adj.get_value() >= maxv - 6
+
     def _scroll_bottom(self):
         """平滑滚到底部，流式输出时不会一格一格跳。"""
         adj = self.scroll.get_vadjustment()
@@ -361,14 +379,21 @@ class Archlot(Gtk.Application):
         if adj is None:
             self._scroll_anim = False
             return False
+        # 每一帧都重新读一次最新高度，避免布局滞后导致的“差一点”
+        target = max(getattr(self, "_scroll_target", 0.0),
+                     adj.get_upper() - adj.get_page_size())
+        self._scroll_target = target
         cur = adj.get_value()
-        target = getattr(self, "_scroll_target", cur)
         delta = target - cur
-        if abs(delta) < 1.0:
+        if abs(delta) < 0.5:
+            self._scroll_programmatic = True
             adj.set_value(target)
+            self._scroll_programmatic = False
             self._scroll_anim = False
             return False
+        self._scroll_programmatic = True
         adj.set_value(cur + delta * 0.30)
+        self._scroll_programmatic = False
         return True
 
     def _reveal(self, child, slide=True, duration=190):
@@ -530,6 +555,8 @@ class Archlot(Gtk.Application):
         self._flush_pending()
         self._stop_caret()
         self._stream_label = None
+        if getattr(self, "_stick_bottom", True):
+            GLib.idle_add(self._scroll_bottom)
 
     TOOL_LABELS = {
         "run_shell": "终端", "screenshot": "截屏", "click": "点击",
@@ -987,6 +1014,10 @@ class Archlot(Gtk.Application):
         self._streaming = False
         self._flush_pending()
         self._stop_caret()
+        self._stick_bottom = True
+        GLib.idle_add(self._scroll_bottom)
+        GLib.timeout_add(120, self._scroll_bottom)
+        GLib.timeout_add(300, self._scroll_bottom)
         self.busy = False
         if getattr(self, "_status_timer", None):
             GLib.source_remove(self._status_timer)
