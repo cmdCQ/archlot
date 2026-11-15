@@ -587,7 +587,7 @@ class Archlot(Gtk.Application):
             return
         body = md.to_markup(self._stream_raw)
         if caret:
-            alpha = "90%" if self._stream_blink else "0%"
+            alpha = "58982" if self._stream_blink else "0"
             body += (f'<span foreground="#b9a7f5" alpha="{alpha}">\u258d</span>')
         self._stream_label.set_markup(body)
 
