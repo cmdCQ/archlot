@@ -1,13 +1,13 @@
 <div align="center">
 
-<img src="docs/banner.svg" alt="Archlot — a local AI agent that lives on your Linux desktop" width="100%">
+<img src="docs/banner.zh-CN.svg" alt="Archlot — 住在 Linux 桌面上的本地 AI 助手" width="100%">
 
 <br>
 
-**A local AI agent that lives on your Linux desktop.**
+**住在 Linux 桌面上的本地 AI 助手。**
 
-Not another chat tab. A GTK4 side panel that can see the screen, move the mouse,
-type, run commands, and remember how you work.
+不是网页里的聊天框，而是一块 GTK4 侧栏：能看屏幕、动鼠标、敲键盘、跑命令，
+还会记住你的习惯和踩过的坑。
 
 <br>
 
@@ -18,108 +18,106 @@ type, run commands, and remember how you work.
 [![License](https://img.shields.io/badge/license-MIT-22C55E)](LICENSE)
 [![CI](https://github.com/cmdCQ/archlot/actions/workflows/ci.yml/badge.svg)](https://github.com/cmdCQ/archlot/actions/workflows/ci.yml)
 
-[English](README.md) · [简体中文](README.zh-CN.md)
+**简体中文** · [English](README.en.md)
 
 </div>
 
 ---
 
-## Why Archlot?
+## 为什么是 Archlot？
 
-Most "computer use" agents are a browser automation script with a chat box on top.
-Archlot is built the other way around: **the desktop is the interface**.
+大多数 “computer use” 项目本质上是浏览器自动化脚本加一个聊天框。
+Archlot 反过来：**桌面才是界面**。
 
-- **Semantic first, pixels second.** If an app exposes an AT-SPI accessibility tree,
-  Archlot reads roles, names, values and actions directly. No guessing coordinates.
-- **Pixels when semantics are missing.** For apps without a tree, it takes a screenshot,
-  overlays a 100 px grid, and every click is bound to a specific screenshot frame.
-  Coordinates are converted with floating-point math, then sent through an absolute
-  `uinput` virtual mouse — measured error is under **0.5 px**.
-- **Keyboard for the boring parts.** Text fields, Tab order, hotkeys, shell commands.
-  The agent picks the cheapest reliable path instead of clicking every pixel.
+- **先语义，后像素。** 应用暴露了 AT-SPI 可访问性树时，直接读角色、名称、值和动作，
+  不猜坐标。
+- **没有树再截图。** 截图会叠加 100px 网格，每次点击都绑定到具体截图帧；
+  坐标用浮点换算后交给绝对坐标 `uinput` 虚拟鼠标，实测误差小于 **0.5px**。
+- **能用键盘就不点。** 文本框、Tab 顺序、快捷键、shell 命令——
+  选最省事又可靠的路径，而不是每个像素都点一遍。
 
-> The coordinate path is not vibes: screenshot pixels → logical screen → `uinput`
-> absolute values is one tested function, with measured error under **0.5 px** on a
-> 2048×1280 niri session. See [`tests/test_coords.py`](tests/test_coords.py).
+> 坐标不是拍脑袋：从截图像素 → 逻辑屏幕 → `uinput` 绝对值，只有一个经过测试的换算函数。
+> 在 2048×1280 的 niri 会话上实测误差小于 **0.5px**，见
+> [`tests/test_coords.py`](tests/test_coords.py)。
 
-### How it compares
+### 和其他方案的区别
 
-| | Browser-only agents | Cloud computer-use | **Archlot** |
+| | 只做浏览器的 agent | 云端 computer-use | **Archlot** |
 |---|---|---|---|
-| Scope | one browser tab | a remote VM | your whole desktop |
-| Runs on | your machine or vendor cloud | vendor cloud | your session, locally |
-| Precision | DOM selectors | screenshot guessing | AT-SPI first, frame-bound pixels |
-| Memory | per session | vendor-side | local SQLite FTS5 |
+| 范围 | 一个浏览器标签页 | 一台远程虚拟机 | 整个桌面 |
+| 运行位置 | 本机或厂商云 | 厂商云 | 本机会话 |
+| 精度 | DOM 选择器 | 猜截图坐标 | AT-SPI 优先，点击绑定截图帧 |
+| 记忆 | 单次会话 | 厂商侧 | 本地 SQLite FTS5 |
 
 <div align="center">
-<img src="docs/panel.svg" alt="Archlot panel UI mockup" width="760">
+<img src="docs/panel.zh-CN.svg" alt="Archlot 面板界面示意" width="760">
 </div>
 
-## What it can do
+## 能做什么
 
 | | |
 |---|---|
-| **See** | Screenshots with a coordinate grid, window list, AT-SPI accessibility snapshots |
-| **Act** | Absolute mouse clicks, scrolling, typing, real keycodes, window focus |
-| **Operate** | Shell commands, read/write files, browse directories |
-| **Remember** | SQLite FTS5 long-term memory: preferences, environment, projects, lessons |
-| **Stay bounded** | Per-turn step and time budgets; dangerous commands require confirmation |
-| **Stay readable** | Four small layers, one-way dependencies, stdlib `unittest` only |
+| **看** | 带坐标网格的截图、窗口列表、AT-SPI 可访问性快照 |
+| **动** | 绝对坐标鼠标点击、滚动、输入、真实键码、窗口聚焦 |
+| **操作** | 执行 shell、读写文件、浏览目录 |
+| **记住** | SQLite FTS5 长期记忆：偏好、环境、项目、经验 |
+| **有边界** | 每轮步数和时间预算；危险命令必须确认 |
+| **可维护** | 四层小架构、单向依赖、只用标准库 `unittest` |
 
-## Architecture
+## 架构
 
 ```mermaid
 flowchart LR
-    U["Hotkey / GTK panel"] --> A["agent/loop.py"]
-    A <--> L["DeepSeek<br/>OpenAI-compatible API"]
-    A --> H["agent/history.py<br/>message history"]
+    U["快捷键 / GTK 面板"] --> A["agent/loop.py"]
+    A <--> L["DeepSeek<br/>OpenAI 兼容接口"]
+    A --> H["agent/history.py<br/>消息历史"]
     A --> T["tools/"]
-    T --> FS["run_shell · files"]
-    T --> D["screenshot · uinput · wtype"]
-    T --> AX["AT-SPI semantics"]
-    T --> M["SQLite FTS5 memory"]
-    T --> P["policy: allow / ask / deny"]
+    T --> FS["run_shell · 文件"]
+    T --> D["截图 · uinput · wtype"]
+    T --> AX["AT-SPI 语义层"]
+    T --> M["SQLite FTS5 记忆"]
+    T --> P["策略：allow / ask / deny"]
 ```
 
 ```
-archlot.py        entry point + wiring only
-core/             config, contracts, system, LLM, memory — knows no UI
-agent/            turn loop, history, prompts, adaptive effort
-tools/            shell, files, desktop, AT-SPI, devices, policy, schemas
-ui/               the only place that imports GTK
+archlot.py        入口，只做接线
+core/             配置、契约、系统、LLM、记忆——不认识界面
+agent/            轮次循环、历史、提示词、自适应思考强度
+tools/            shell、文件、桌面、AT-SPI、输入设备、策略、schema
+ui/               唯一允许 import GTK 的地方
 ```
 
-Dependencies point one way: `archlot.py → agent / tools / ui → core`.
-`agent/`, `tools/` and `ui/` never import each other.
+依赖只能向下：`archlot.py → agent / tools / ui → core`。
+`agent/`、`tools/`、`ui/` 互不 import。
 
-## Quick start
+## 快速开始
 
-Archlot is developed on **Arch Linux + niri (Wayland)**. Other Wayland compositors
-may work, but niri is the tested target.
+Archlot 在 **Arch Linux + niri（Wayland）** 上开发和测试。
+其他 Wayland 合成器可能可用，但 niri 是当前验证过的目标。
 
 ```bash
-# 1. System dependencies
+# 1. 系统依赖
 sudo pacman -S --needed python-gobject gtk4 at-spi2-core grim wtype wl-clipboard ffmpeg
 
-# 2. /dev/uinput access for the virtual mouse
+# 2. 给虚拟鼠标 /dev/uinput 权限
 sudo usermod -aG input "$USER"
-# log out and back in after this
+# 改完重新登录
 
-# 3. Clone and configure
+# 3. 克隆并配置
 git clone https://github.com/cmdCQ/archlot.git
 cd archlot
 mkdir -p ~/.config/archlot
 cp config.example.json ~/.config/archlot/config.json
 chmod 600 ~/.config/archlot/config.json
-# put your DeepSeek key in api_key, or export DEEPSEEK_API_KEY
+# 把 DeepSeek key 填进 api_key，或者 export DEEPSEEK_API_KEY
 
-# 4. Run
-bin/archlot              # show the panel
-bin/archlot --toggle     # show / hide
-bin/archlot --daemon     # stay resident without showing
+# 4. 运行
+bin/archlot              # 显示面板
+bin/archlot --toggle     # 显示 / 收起
+bin/archlot --daemon     # 只驻留，不显示
 ```
 
-Bind it to a key (niri example):
+绑到快捷键（niri 示例）：
 
 ```kdl
 binds {
@@ -127,93 +125,87 @@ binds {
 }
 ```
 
-> **Accessibility note:** semantic mode uses AT-SPI. If your session has
-> `org.a11y.Status.IsEnabled=false`, Archlot falls back to screenshots and tells you
-> why. For Firefox, enabling `accessibility.force_enabled` gives it a full tree.
+> **可访问性说明：** 语义模式依赖 AT-SPI。如果会话里
+> `org.a11y.Status.IsEnabled=false`，Archlot 会明确告诉你，并退回截图模式。
+> Firefox 需要打开 `accessibility.force_enabled` 才会暴露完整的可访问性树。
 
-## Try asking
+## 可以这样用
 
 ```text
-Find the invoice PDF in my downloads and summarize the totals.
-Open the settings app and turn on night light.
-Look at this web form and fill it with my details. Use the mouse first.
-Why is my laptop fan loud? Check sensors and processes, then explain.
-Write a script that renames these photos by date, then run it.
+把我下载目录里的发票 PDF 找出来，把金额合计一下。
+打开设置，把夜间模式打开。
+看着这个网页表单，用鼠标帮我填一下。
+笔记本风扇为什么一直响？查一下传感器和进程再告诉我。
+写个脚本把工作区里的照片按日期改名，然后直接运行。
 ```
 
-## Toolbox
+## 工具
 
-| Tool | What it does |
+| 工具 | 作用 |
 |---|---|
-| `screenshot` | Capture the screen, attach a coordinate grid, return a frame id |
-| `ui` | AT-SPI snapshot and semantic actions: click, set text, select, read, focus |
-| `list_windows` | List windows and their geometry |
-| `focus_window` | Focus a window by id |
-| `click` | Click in screenshot-frame coordinates |
-| `move_mouse` | Move the absolute pointer |
-| `scroll` | Scroll vertically or horizontally |
-| `type_text` | Type text, including real-keycode mode for stubborn UIs |
-| `press_key` | Send key chords / named keys |
-| `panel` | Move, resize, dock, fade or hide Archlot's own panel |
-| `run_shell` | Run a shell command in the workspace |
-| `read_file` | Read a text file |
-| `write_file` | Write a text file |
-| `list_dir` | List a directory |
-| `memory` | Add, search or forget long-term memories |
+| `screenshot` | 截屏，叠加坐标网格，返回 frame 编号 |
+| `ui` | AT-SPI 快照与语义动作：click、set_text、select、read、focus |
+| `list_windows` | 列出窗口和几何信息 |
+| `focus_window` | 按 id 聚焦窗口 |
+| `click` | 按截图帧坐标点击 |
+| `move_mouse` | 移动绝对坐标鼠标 |
+| `scroll` | 纵向 / 横向滚动 |
+| `type_text` | 输入文字，支持真实键码模式 |
+| `press_key` | 发送组合键 / 命名键 |
+| `panel` | 移动、缩放、贴边、淡化或隐藏 Archlot 自己的面板 |
+| `run_shell` | 在工作区执行 shell 命令 |
+| `read_file` | 读取文本文件 |
+| `write_file` | 写入文本文件 |
+| `list_dir` | 列出目录 |
+| `memory` | 添加、检索、忘掉长期记忆 |
 
-## Safety model
+## 安全模型
 
-- **One policy source.** `tools/policy.py` classifies every action as allow, ask or deny.
-  Dangerous commands (`sudo`, `mkfs`, `dd`, shutdown, package removal, deleting system
-  directories) always open a confirmation dialog.
-- **Structured results.** Tools return a `ToolResult` with an error kind
-  (`bad_args`, `denied`, `exception`, `not_found`, `stale_frame`, ...). Denied and failed
-  are different things and are handled differently.
-- **Bounded autonomy.** A turn stops at `max_steps` and `max_turn_seconds` (600 / 600 s
-  by default), and every tool call has its own timeout.
-- **No hidden knobs.** Adaptive reasoning effort is off by default. When enabled, the
-  current level is shown in the status bar and every change is logged.
-- **Your key stays local.** The API key lives in `~/.config/archlot/config.json` or
-  `DEEPSEEK_API_KEY`. Only the model request leaves the machine; the UI and all desktop
-  actions are local.
+- **策略只有一个源。** `tools/policy.py` 把动作分成 allow / ask / deny。
+  `sudo`、`mkfs`、`dd`、关机、卸载包、删系统目录等危险命令一律弹确认。
+- **结果结构化。** 每个工具返回 `ToolResult`，带 `error_kind`
+  （`bad_args`、`denied`、`exception`、`not_found`、`stale_frame`……）。
+  “被拒绝”和“执行失败”是两件事。
+- **自主有预算。** 每轮最多 `max_steps` 步、`max_turn_seconds` 秒（默认 600 / 600），
+  单次工具调用也有超时。
+- **没有隐藏旋钮。** 自适应思考强度默认关闭；开启后状态栏会显示当前档位，
+  每次变化都写日志。
+- **Key 留在本地。** API key 存在 `~/.config/archlot/config.json` 或
+  `DEEPSEEK_API_KEY`。只有模型请求会离开本机，界面和所有桌面动作都在本地。
 
-## Design principles
+## 设计原则
 
-1. **Small layers, hard boundaries.** GTK only in `ui/`; `core/` knows nothing above it.
-2. **One source of truth per concern.** Policy in `policy.py`, history in `history.py`,
-   coordinates in one conversion function.
-3. **Semantic before pixel.** Accessibility trees beat guessed coordinates; coordinates
-   beat nothing.
-4. **Every action is auditable.** Structured results, frame ids, and logs in
-   `/tmp/archlot-app.log`.
-5. **No framework for its own sake.** No event bus, no DI container, no provider
-   abstraction layer.
+1. **层小，边界硬。** GTK 只在 `ui/`；`core/` 不知道上层存在。
+2. **每件事只有一个源。** 策略在 `policy.py`，历史在 `history.py`，
+   坐标换算只有一个函数。
+3. **语义优先于像素。** 可访问性树比猜坐标稳；猜坐标比什么都不做强。
+4. **每个动作可审计。** 结构化结果、frame 编号、日志在 `/tmp/archlot-app.log`。
+5. **不为抽象而抽象。** 没有事件总线、没有 DI 容器、没有 provider 适配层。
 
-## Status & roadmap
+## 状态与路线
 
-Archlot is usable daily and under active development. Known limits:
+Archlot 已经可以日常使用，但仍在开发中。已知限制：
 
-- Built and tested on niri; GNOME/KDE/Sway are not yet validated.
-- AT-SPI coverage depends on the application. Some apps expose little or nothing.
-- Screenshot coordinate estimates still have human-like error on very small controls.
-  The next step is zoomed region screenshots that give the model a magnified view.
-- UI copy is currently Chinese; the agent answers in Chinese by default.
+- 只在 niri 上验证过；GNOME / KDE / Sway 还没测。
+- AT-SPI 覆盖取决于应用，有些应用几乎不暴露树。
+- 截图坐标估计对很小的控件仍会有人类式的误差。下一步是做**局部放大截图**，
+  让模型看清目标再点。
+- 界面文案目前是中文，助手默认也用中文回答。
 
-Roadmap: zoomable screenshot crops, a click-precision regression suite, broader
-compositor support, and more semantic adapters for common apps.
+路线：局部放大截图、点击精度回归测试、更多合成器支持、常见应用的语义适配。
 
-## Contributing
+## 参与开发
 
-Read [`AGENT.md`](AGENT.md) first — it is the single source of truth for code rules.
-[`CONTRIBUTING.md`](CONTRIBUTING.md) covers setup and pull-request expectations;
-security reports go through [`SECURITY.md`](SECURITY.md). Then:
+先读 [`AGENT.md`](AGENT.md)——它是代码规则的唯一来源。
+开发环境和 PR 约定见 [`CONTRIBUTING.md`](CONTRIBUTING.md)，
+安全问题走 [`SECURITY.md`](SECURITY.md)。然后：
 
 ```bash
 python -m compileall -q core agent tools ui archlot.py
 python -m unittest discover -s tests -t .
 ```
 
-No pytest, no ruff, no new top-level packages. Keep the dependency direction intact.
+不要引入 pytest、ruff 或新的顶层包，保持依赖方向不变。
 
 ## License
 
@@ -223,6 +215,6 @@ No pytest, no ruff, no new top-level packages. Keep the dependency direction int
 
 <div align="center">
 
-**If Archlot saves you a click — or a hundred — a star helps other people find it.**
+**如果 Archlot 帮你少点了哪怕一百次鼠标，点个 star 让更多人看到它。**
 
 </div>
