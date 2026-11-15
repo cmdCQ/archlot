@@ -46,11 +46,11 @@ ui/               panel / chat / markdown / sound
 9. **AT-SPI 只允许在 `tools/a11y.py` 里 import**，只在 worker 线程用，
    不创建 GTK 控件。有可访问性树时 `ui` 优先；没树就明确退回截图。
 
-## 工具（15 个）
+## 工具（16 个）
 
 `run_shell` `read_file` `write_file` `list_dir` `screenshot` `ui` `click`
 `move_mouse` `scroll` `type_text` `press_key` `list_windows` `focus_window`
-`panel` `memory`
+`panel` `appearance` `memory`
 
 - 默认工作区 `~/archlot-workspace`，也是 shell 的 cwd
 - 工作区外写入默认放行但会在结果里标注；`confirm_mode=strict` 时才询问
@@ -66,7 +66,11 @@ ui/               panel / chat / markdown / sound
 ## 视觉
 
 - 右侧竖栏，默认 380×880，贴右居中，可拖标题栏移动
-- 默认背景 alpha 0.8，`panel(opacity=...)` 可调
+- 默认背景 alpha 0.8，`panel(opacity=...)` 或 `appearance(opacity=...)` 可调
+- 外观状态存在 `window.json` 的 `opacity accent background radius font_scale
+  blur xray noise` 字段；校验、预设、CSS、niri 规则都在 `ui/appearance.py`（不 import gi）
+- `appearance(action="niri")` 生成 window-rule：niri 负责模糊和圆角裁剪，
+  **不要在 niri 规则里写 opacity**，会与 CSS alpha 叠乘
 - 状态呼吸：待机 5.5s、干活 1.5s、出错闪红
 - 流式光标、消息上滑入场、清空淡出、平滑滚动
 - 声效可关：`"sound_effects": false`

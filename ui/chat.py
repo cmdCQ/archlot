@@ -9,7 +9,7 @@ TOOL_LABELS = {
     "type_text": "输入", "press_key": "按键", "move_mouse": "移动鼠标",
     "scroll": "滚动", "list_windows": "窗口列表", "focus_window": "切换窗口",
     "read_file": "读取文件", "write_file": "写入文件", "list_dir": "目录",
-    "panel": "调整窗口", "memory": "记忆",
+    "panel": "调整窗口", "appearance": "外观", "memory": "记忆",
 }
 
 
@@ -27,6 +27,10 @@ def tool_preview(name, args):
             return str(args.get("path", ""))
         if name == "panel":
             return str(args.get("action", ""))
+        if name == "appearance":
+            action = str(args.get("action", ""))
+            preset = args.get("preset")
+            return f"{action} {preset}" if preset else action
         if name == "focus_window":
             return f"窗口 {args.get('id')}"
         if name == "memory":

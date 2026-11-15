@@ -293,3 +293,47 @@ def panel(tools, a) -> ToolResult:
               f"内容最小={info.get('min_width')}x{info.get('min_height')}",
               meta={"kind": "act" if action != "info" else "observe",
                     "effect": "confirmed"})
+
+
+_APPEARANCE_FIELDS = ("opacity", "accent", "background", "radius",
+                      "font_scale", "blur", "xray", "noise")
+
+
+def appearance(tools, a) -> ToolResult:
+    ui = tools.ctx.panel
+    if ui is None:
+        return fail("外观控制不可用。", "unavailable")
+    action = str(a.get("action", "info"))
+
+    if action == "info":
+        info = ui.appearance_info()
+    elif action == "niri":
+        return ok(ui.appearance_niri(),
+                  meta={"kind": "observe", "effect": "confirmed"})
+    elif action == "reset":
+        info = ui.appearance_reset()
+    elif action == "preset":
+        name = str(a.get("preset", "default")).strip().lower()
+        info = ui.appearance_preset(name)
+        if info is None:
+            return fail(f"未知预设：{name}（可选：default midnight warm "
+                        f"cyan mono rose）", "bad_args")
+    elif action == "set":
+        changes = {k: a[k] for k in _APPEARANCE_FIELDS
+                   if a.get(k) is not None}
+        if not changes:
+            return fail("set 至少要给一个字段：opacity / accent / "
+                        "background / radius / font_scale / blur / "
+                        "xray / noise。", "bad_args")
+        info = ui.appearance_set(**changes)
+    else:
+        return fail(f"不支持的 action：{action}", "bad_args")
+
+    blur = "开" if info["blur"] else "关"
+    return ok(f"外观 透明度={info['opacity']} 主色={info['accent']} "
+              f"背景={info['background']} 圆角={info['radius']}px "
+              f"字号={info['font_scale']}x 模糊={blur} "
+              f"xray={info['xray']} 噪点={info['noise']} "
+              f"预设={','.join(info['presets'])}",
+              meta={"kind": "act" if action in ("set", "preset", "reset")
+                    else "observe", "effect": "confirmed"})

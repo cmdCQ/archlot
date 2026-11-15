@@ -44,6 +44,7 @@ HANDLERS = {
     "list_windows": desktop.list_windows,
     "focus_window": desktop.focus_window,
     "panel": desktop.panel,
+    "appearance": desktop.appearance,
     "memory": recall.memory,
     "ui": a11y_tool.ui,
 }

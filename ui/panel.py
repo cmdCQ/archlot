@@ -23,7 +23,7 @@ from gi.repository import Gdk, GLib, Graphene, Gtk, Pango  # noqa: E402
 from core import system  # noqa: E402
 from core.config import APP_ID, GEOM_PATH, atomic_write_json  # noqa: E402
 from core.contracts import ToolResult  # noqa: E402
-from . import markdown  # noqa: E402
+from . import appearance, markdown  # noqa: E402
 from .chat import TOOL_LABELS, tool_preview  # noqa: E402
 from .sound import Sound  # noqa: E402
 
@@ -183,10 +183,10 @@ class Panel:
         root.set_size_request(self.geom["w"], self.geom["h"])
         win.set_child(root)
         self.root = root
-        self._alpha_provider = Gtk.CssProvider()
+        self._appearance_provider = Gtk.CssProvider()
         root.get_style_context().add_provider(
-            self._alpha_provider, Gtk.STYLE_PROVIDER_PRIORITY_USER)
-        self._apply_alpha()
+            self._appearance_provider, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+        self._apply_appearance()
 
         # 顶部状态行
         self.header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
@@ -883,7 +883,7 @@ class Panel:
         if not self.win.get_visible():
             self.win.present()
         self.win.set_opacity(1.0)
-        self._apply_alpha()
+        self._apply_appearance()
         self._place()
         self._fade_in()
         self.entry.grab_focus()
@@ -964,16 +964,17 @@ class Panel:
         h = min(PANEL_H_MAX, int(sh) - 2 * MARGIN)
         default = {"x": int(sw) - MARGIN - PANEL_W,
                    "y": (int(sh) - h) // 2,
-                   "w": PANEL_W, "h": h,
-                   "opacity": 0.8}
+                   "w": PANEL_W, "h": h}
+        default.update(appearance.DEFAULTS)
         try:
             with open(GEOM_PATH) as f:
                 saved = json.load(f)
-            for k in ("x", "y", "w", "h", "opacity"):
+            for k in ("x", "y", "w", "h") + appearance.FIELDS:
                 if k in saved:
                     default[k] = saved[k]
         except (OSError, json.JSONDecodeError):
             pass
+        default.update(appearance.normalize(default))
         return self._clamp_geom(default, screen)
 
     @staticmethod
@@ -1143,7 +1144,7 @@ class Panel:
             g = dict(self.geom)
         if self.win is not None:
             self.win.set_opacity(1.0)
-            self._apply_alpha()
+            self._apply_appearance()
             self._apply_chrome()
             w, h = g["w"], g["h"]
             if w < self.root.get_width() or h < self.root.get_height():
@@ -1211,11 +1212,7 @@ class Panel:
             v = max(0.2, min(1.0, float(value)))
         except (TypeError, ValueError):
             v = 1.0
-        with self._lock:
-            self.geom["opacity"] = v
-        self._save_geom()
-        self._ui(self._apply_alpha, v)
-        return self.panel_info()
+        return self.appearance_set(opacity=v)
 
     def panel_reset(self):
         sw, sh = system.screen_size()
@@ -1303,16 +1300,48 @@ class Panel:
 
     # ------------------------------------------------------------ 视觉
 
-    def _apply_alpha(self, alpha=None):
+    def _appearance_state(self):
         with self._lock:
-            a = float(self.geom.get("opacity", 0.8) if alpha is None else alpha)
-        a = max(0.2, min(1.0, a))
+            return {k: self.geom.get(k, appearance.DEFAULTS[k])
+                    for k in appearance.FIELDS}
+
+    def _apply_appearance(self, state=None):
+        s = appearance.normalize(state if state is not None
+                                 else self._appearance_state())
         try:
-            self._alpha_provider.load_from_data(
-                (".root { background-color: rgba(17, 17, 22, %.3f); }" % a)
-                .encode())
+            self._appearance_provider.load_from_data(
+                appearance.css(s).encode())
         except Exception as exc:  # noqa: BLE001
-            log.warning("alpha 设置失败：%s", exc)
+            log.warning("外观设置失败：%s", exc)
+
+    def appearance_info(self):
+        info = self._appearance_state()
+        info["presets"] = sorted(appearance.PRESETS)
+        return info
+
+    def appearance_set(self, **changes):
+        with self._lock:
+            current = {k: self.geom.get(k, appearance.DEFAULTS[k])
+                       for k in appearance.FIELDS}
+            current.update({k: v for k, v in changes.items()
+                            if k in appearance.FIELDS and v is not None})
+            current = appearance.normalize(current)
+            self.geom.update(current)
+        self._save_geom()
+        self._ui(self._apply_appearance)
+        return self.appearance_info()
+
+    def appearance_preset(self, name):
+        preset = appearance.PRESETS.get(str(name or "").strip().lower())
+        if preset is None:
+            return None
+        return self.appearance_set(**preset)
+
+    def appearance_reset(self):
+        return self.appearance_set(**appearance.DEFAULTS)
+
+    def appearance_niri(self):
+        return appearance.niri_rule(self._appearance_state())
 
     def _set_state(self, state):
         for name in ("state-idle", "state-busy", "state-error"):
