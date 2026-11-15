@@ -72,14 +72,22 @@ _FONT_SIZES = {
     ".empty-hint": 8.5,
     ".narration": 8.5,
     "entry": 10.5,
-    ".setup-title": 15.0,
+    ".setup-title": 19.0,
     ".setup-sub": 9.0,
     ".setup-feature-text": 9.0,
-    ".setup-key-desc": 8.5,
-    ".setup-label": 8.0,
-    ".setup-status": 8.5,
+    ".setup-key-desc": 8.3,
+    ".setup-label": 7.5,
+    ".setup-status": 8.0,
     ".setup-code": 7.0,
     ".setup-mock-text": 8.5,
+    ".setup-section-title": 8.5,
+    ".setup-tile-title": 9.0,
+    ".setup-tile-text": 7.4,
+    ".setup-stage-text": 9.0,
+    ".setup-stage-prompt": 9.2,
+    ".setup-hint": 7.5,
+    ".setup-callout-text": 8.3,
+    ".setup-done-value": 8.3,
 }
 
 
@@ -257,23 +265,61 @@ def css(state) -> str:
         "  100% { background-color: rgba(255, 255, 255, 0.026); }",
         "}",
         ".tool-card.tool-done { animation: archlot-cardpop 0.45s ease-out 1; }",
-        f"button.setup-next {{ background-color: {_rgba(accent, 0.14)}; "
-        f"border-color: {_rgba(accent, 0.28)}; color: {_rgba(accent, 0.95)}; }}",
-        ("button.setup-next:hover { background-color: %s; border-color: %s; }"
-         % (_rgba(accent, 0.22), _rgba(accent, 0.44))),
-        f"button.setup-tab:checked {{ background-color: {_rgba(accent, 0.12)}; "
-        f"color: {_rgba(accent, 0.92)}; }}",
+        (".setup { background-image: linear-gradient(180deg, %s, transparent 42%%); }"
+         % _rgba(accent, 0.055)),
+        (f".setup-logo {{ background-color: {accent}; "
+         f"box-shadow: 0 0 12px {_rgba(accent, 0.45)}; }}"),
+        f".setup-overline {{ color: {_rgba(accent, 0.66)}; }}",
+        f".setup-step {{ color: {_rgba(accent, 0.44)}; }}",
+        f".setup-progress-seg.active {{ background-color: {accent}; "
+        f"box-shadow: 0 0 8px {_rgba(accent, 0.42)}; }}",
+        f".setup-progress-seg.done {{ background-color: {_rgba(accent, 0.32)}; }}",
+        f".setup-eyebrow {{ color: {_rgba(accent, 0.78)}; }}",
+        f".setup-section-mark {{ background-color: {accent}; }}",
+        f".setup-stage-bar, .setup-preview-bar {{ background-color: {_rgba(accent, 0.72)}; }}",
+        (".setup-stage { background-image: linear-gradient(155deg, %s, "
+         "rgba(255, 255, 255, 0.028) 38%%, rgba(255, 255, 255, 0.012)); }"
+         % _rgba(accent, 0.13)),
+        (".setup-preview { background-image: linear-gradient(160deg, %s, "
+         "rgba(255, 255, 255, 0.018) 55%%); }" % _rgba(accent, 0.10)),
+        f".setup-preview-status {{ color: {_rgba(accent, 0.78)}; "
+        f"background-color: {_rgba(accent, 0.08)}; "
+        f"border-color: {_rgba(accent, 0.16)}; }}",
+        f".setup-step-num {{ color: {_rgba(accent, 0.60)}; }}",
+        f".setup-tile-key {{ color: {_rgba(accent, 0.94)}; }}",
+        f".setup-tile:hover {{ border-color: {_rgba(accent, 0.25)}; }}",
+        (".setup-callout { background-image: linear-gradient(145deg, %s, "
+         "rgba(255, 255, 255, 0.016)); border-color: %s; }"
+         % (_rgba(accent, 0.12), _rgba(accent, 0.18))),
+        f".setup-keyarrow {{ color: {_rgba(accent, 0.74)}; }}",
+        f".setup-done-check {{ background-color: {_rgba(accent, 0.12)}; "
+        f"border-color: {_rgba(accent, 0.30)}; color: {_rgba(accent, 0.94)}; "
+        f"box-shadow: 0 0 22px {_rgba(accent, 0.14)}; }}",
+        (f"button.setup-next {{ background-image: linear-gradient(135deg, "
+         f"{_rgba(accent, 0.26)}, {_rgba(accent, 0.12)}); "
+         f"border-color: {_rgba(accent, 0.38)}; "
+         f"box-shadow: 0 4px 14px {_rgba(accent, 0.10)}; }}"),
+        ("button.setup-next:hover { background-image: linear-gradient(135deg, %s, %s); "
+         "border-color: %s; }"
+         % (_rgba(accent, 0.34), _rgba(accent, 0.18), _rgba(accent, 0.56))),
+        f"button.setup-tab:checked {{ background-color: {_rgba(accent, 0.16)}; "
+        f"color: rgba(246, 243, 252, 0.96); }}",
         f"button.setup-toggle:checked {{ background-color: {_rgba(accent, 0.16)}; "
         f"border-color: {_rgba(accent, 0.36)}; }}",
-        f"button.preset.active {{ border-color: {_rgba(accent, 0.46)}; "
+        (f"button.preset.active {{ border-color: {_rgba(accent, 0.50)}; "
+         f"background-image: linear-gradient(150deg, {_rgba(accent, 0.16)}, "
+         f"{_rgba(accent, 0.035)}); }}"),
+        f"button.preset.active .setup-preset-check {{ color: {_rgba(accent, 0.92)}; }}",
+        f"button.setup-swatch.active {{ border-color: {_rgba(accent, 0.92)}; "
         f"background-color: {_rgba(accent, 0.10)}; }}",
-        f"scale highlight {{ background-color: {_rgba(accent, 0.58)}; }}",
+        f"scale highlight {{ background-color: {_rgba(accent, 0.62)}; }}",
         f"scale slider {{ background-color: {_rgba(accent, 0.92)}; }}",
-        f".setup-dots {{ color: {_rgba(accent, 0.45)}; }}",
-        f".setup-step {{ color: {_rgba(accent, 0.55)}; }}",
-        f".setup-value {{ color: {_rgba(accent, 0.78)}; }}",
-        f".setup-feature-key {{ color: {_rgba(accent, 0.85)}; }}",
-        f".setup-field:focus-within {{ border-color: {_rgba(accent, 0.28)}; }}",
+        f".setup-value {{ color: {_rgba(accent, 0.88)}; "
+        f"background-color: {_rgba(accent, 0.10)}; "
+        f"border-color: {_rgba(accent, 0.14)}; }}",
+        f".setup-feature-key {{ color: {_rgba(accent, 0.88)}; }}",
+        f".setup-field:focus-within, .setup-accent-field:focus-within "
+        f"{{ border-color: {_rgba(accent, 0.34)}; }}",
         f"entry > text > selection {{ background-color: {_rgba(accent, 0.32)}; }}",
         ("entry > text > selection:focus { background-color: %s; }"
          % _rgba(accent, 0.42)),

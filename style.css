@@ -432,28 +432,72 @@ button.gear:hover {
     border-radius: 6px;
 }
 
+.setup {
+    background-image: linear-gradient(
+        180deg, rgba(185, 167, 245, 0.055), rgba(17, 17, 22, 0.0) 42%);
+}
+
+/* ---------------- 设置页头 ---------------- */
+
 .setup-header {
-    margin: 14px 16px 2px 16px;
+    margin: 13px 18px 9px 18px;
+}
+
+.setup-drag {
+    min-height: 34px;
+}
+
+.setup-logo {
+    min-width: 10px;
+    min-height: 10px;
+    border-radius: 99px;
+    background-color: #b9a7f5;
+    box-shadow: 0 0 12px rgba(185, 167, 245, 0.42);
+}
+
+.setup-overline {
+    color: rgba(185, 167, 245, 0.62);
+    font-size: 6.4pt;
+    font-weight: 700;
+    letter-spacing: 1.6px;
 }
 
 .setup-step {
-    color: rgba(190, 184, 202, 0.42);
-    font-size: 8pt;
-    letter-spacing: 0.4px;
+    color: rgba(190, 184, 202, 0.38);
+    font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
+    font-size: 7pt;
+    letter-spacing: 1px;
 }
 
-.setup-dots {
-    color: rgba(185, 167, 245, 0.45);
-    font-size: 7pt;
-    letter-spacing: 3px;
+.setup-progress {
+    margin: 0 18px 5px 18px;
 }
+
+.setup-progress-seg {
+    min-height: 2px;
+    border-radius: 99px;
+    background-color: rgba(255, 255, 255, 0.075);
+    transition-property: background-color;
+    transition-duration: 180ms;
+}
+
+.setup-progress-seg.done {
+    background-color: rgba(185, 167, 245, 0.32);
+}
+
+.setup-progress-seg.active {
+    background-color: #b9a7f5;
+    box-shadow: 0 0 8px rgba(185, 167, 245, 0.40);
+}
+
+/* 设置模式的页签 */
 
 .setup-tabs {
-    margin: 4px 16px 8px 16px;
+    margin: 0 18px 10px 18px;
     padding: 3px;
-    border-radius: 9px;
-    background-color: rgba(255, 255, 255, 0.024);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 11px;
+    background-color: rgba(0, 0, 0, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.055);
 }
 
 button.setup-tab {
@@ -461,106 +505,162 @@ button.setup-tab {
     background-image: none;
     border: none;
     box-shadow: none;
-    border-radius: 7px;
-    color: rgba(190, 184, 202, 0.58);
-    padding: 3px 8px;
+    border-radius: 8px;
+    color: rgba(190, 184, 202, 0.56);
+    min-height: 26px;
+    padding: 2px 6px;
     font-size: 8.5pt;
+    font-weight: 500;
     transition-property: color, background-color;
-    transition-duration: 130ms;
+    transition-duration: 140ms;
 }
 
 button.setup-tab:hover {
     color: rgba(240, 237, 246, 0.82);
-    background-color: rgba(255, 255, 255, 0.04);
+    background-color: rgba(255, 255, 255, 0.045);
 }
 
 button.setup-tab:checked {
-    color: rgba(242, 239, 248, 0.94);
-    background-color: rgba(185, 167, 245, 0.12);
+    color: rgba(246, 243, 252, 0.96);
+    background-color: rgba(185, 167, 245, 0.16);
 }
 
 button.setup-close {
     background: transparent;
     background-image: none;
-    border: none;
+    border: 1px solid transparent;
     box-shadow: none;
-    color: rgba(190, 184, 202, 0.42);
-    min-width: 24px;
-    min-height: 24px;
+    color: rgba(190, 184, 202, 0.46);
+    min-width: 30px;
+    min-height: 30px;
     padding: 0;
-    font-size: 13pt;
-    border-radius: 6px;
+    font-size: 11.5pt;
+    border-radius: 9px;
+    transition-property: color, background-color, border-color;
+    transition-duration: 130ms;
 }
 
 button.setup-close:hover {
-    color: rgba(240, 237, 246, 0.92);
-    background-color: rgba(255, 255, 255, 0.06);
+    color: rgba(246, 243, 252, 0.94);
+    background-color: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.06);
 }
 
+button.setup-close:active {
+    background-color: rgba(255, 255, 255, 0.04);
+}
+
+/* ---------------- 页面骨架 ---------------- */
+
 .setup-body {
-    margin: 4px 16px 10px 16px;
+    margin: 4px 18px 12px 18px;
+}
+
+.setup-heading {
+    margin: 2px 0 3px 0;
+}
+
+.setup-eyebrow {
+    color: rgba(185, 167, 245, 0.72);
+    font-size: 6.8pt;
+    font-weight: 700;
+    letter-spacing: 1.8px;
 }
 
 .setup-title {
-    color: rgba(242, 239, 248, 0.96);
-    font-size: 15pt;
-    font-weight: 500;
-    letter-spacing: 0.2px;
+    color: rgba(244, 241, 249, 0.97);
+    font-size: 19pt;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    line-height: 1.18;
 }
 
 .setup-sub {
-    color: rgba(190, 184, 202, 0.62);
+    color: rgba(196, 190, 210, 0.62);
     font-size: 9pt;
-    line-height: 1.55;
+    line-height: 1.6;
+}
+
+.setup-section {
+    margin: 0 0 1px 0;
+}
+
+.setup-section-mark {
+    min-width: 2px;
+    min-height: 11px;
+    border-radius: 99px;
+    background-color: #b9a7f5;
+}
+
+.setup-section-title {
+    color: rgba(230, 226, 240, 0.80);
+    font-size: 8.5pt;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+}
+
+.setup-section-meta {
+    color: rgba(190, 184, 202, 0.30);
+    font-size: 6.4pt;
+    font-weight: 600;
+    letter-spacing: 1.3px;
 }
 
 .setup-card {
-    background-color: rgba(255, 255, 255, 0.030);
-    border: 1px solid rgba(255, 255, 255, 0.055);
-    border-radius: 12px;
-    padding: 11px 12px;
+    background-image: linear-gradient(
+        160deg, rgba(255, 255, 255, 0.042), rgba(255, 255, 255, 0.014));
+    border: 1px solid rgba(255, 255, 255, 0.065);
+    border-radius: 14px;
+    padding: 13px 13px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10);
 }
 
 .setup-card-title {
-    color: rgba(228, 224, 238, 0.78);
+    color: rgba(230, 226, 240, 0.80);
     font-size: 8.5pt;
     font-weight: 600;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.4px;
 }
 
 .setup-feature-key {
-    color: rgba(185, 167, 245, 0.85);
+    color: rgba(185, 167, 245, 0.88);
     font-size: 9pt;
     font-weight: 600;
 }
 
 .setup-feature-text {
-    color: rgba(214, 209, 224, 0.78);
+    color: rgba(214, 209, 224, 0.76);
     font-size: 9pt;
-    line-height: 1.5;
+    line-height: 1.55;
 }
 
 .setup-label {
-    color: rgba(190, 184, 202, 0.55);
-    font-size: 8pt;
-    font-weight: 500;
-    letter-spacing: 0.3px;
+    color: rgba(196, 190, 210, 0.52);
+    font-size: 7.5pt;
+    font-weight: 600;
+    letter-spacing: 0.4px;
 }
 
 .setup-value {
-    color: rgba(185, 167, 245, 0.78);
-    font-size: 8pt;
+    color: rgba(185, 167, 245, 0.86);
+    background-color: rgba(185, 167, 245, 0.10);
+    border: 1px solid rgba(185, 167, 245, 0.14);
+    border-radius: 99px;
+    padding: 0 7px;
+    min-height: 18px;
+    font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
+    font-size: 7.5pt;
 }
 
 .setup-hint {
-    color: rgba(174, 169, 185, 0.52);
-    font-size: 8pt;
-    line-height: 1.45;
+    color: rgba(180, 174, 192, 0.44);
+    font-size: 7.5pt;
+    line-height: 1.5;
 }
 
 .setup-status {
     color: rgba(150, 220, 170, 0.78);
-    font-size: 8.5pt;
+    font-size: 8pt;
     line-height: 1.45;
 }
 
@@ -568,19 +668,23 @@ button.setup-close:hover {
     color: rgba(240, 160, 158, 0.90);
 }
 
+.setup-fieldgroup {
+    margin: 1px 0;
+}
+
 .setup-field {
-    background-color: rgba(255, 255, 255, 0.035);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: 9px;
-    min-height: 32px;
-    padding: 0 8px;
+    background-color: rgba(0, 0, 0, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.075);
+    border-radius: 10px;
+    min-height: 36px;
+    padding: 0 10px;
     transition-property: border-color, background-color;
-    transition-duration: 140ms;
+    transition-duration: 150ms;
 }
 
 .setup-field:focus-within {
-    background-color: rgba(255, 255, 255, 0.05);
-    border-color: rgba(185, 167, 245, 0.28);
+    background-color: rgba(0, 0, 0, 0.22);
+    border-color: rgba(185, 167, 245, 0.32);
 }
 
 .setup-entry {
@@ -589,28 +693,210 @@ button.setup-close:hover {
 }
 
 .kbd {
-    color: rgba(224, 219, 234, 0.82);
-    background-color: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: 5px;
+    color: rgba(228, 224, 238, 0.84);
+    background-color: rgba(255, 255, 255, 0.055);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
     padding: 1px 6px;
     font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
-    font-size: 7.5pt;
+    font-size: 7.2pt;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.22);
 }
 
 .setup-key-desc {
-    color: rgba(214, 209, 224, 0.72);
-    font-size: 8.5pt;
+    color: rgba(206, 200, 218, 0.68);
+    font-size: 8.3pt;
     line-height: 1.45;
 }
 
-/* 教程里的迷你面板 */
+.setup-kbd-row {
+    padding: 2px 0;
+}
 
-.setup-mock {
-    background-color: rgba(255, 255, 255, 0.032);
+/* ---------------- 教程：舞台 ---------------- */
+
+.setup-stage {
+    background-image: linear-gradient(
+        155deg, rgba(185, 167, 245, 0.13),
+        rgba(255, 255, 255, 0.028) 38%, rgba(255, 255, 255, 0.012));
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 16px;
+    padding: 12px 13px 13px 13px;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
+}
+
+.setup-stage-bar {
+    min-height: 2px;
+    margin: 0 0 9px 0;
+    border-radius: 99px;
+    background-color: rgba(185, 167, 245, 0.72);
+}
+
+.setup-stage-label {
+    color: rgba(226, 220, 240, 0.46);
+    font-size: 6.4pt;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+}
+
+.setup-stage-meta {
+    color: rgba(180, 174, 192, 0.40);
+    font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
+    font-size: 7pt;
+}
+
+.setup-stage-prompt {
+    color: rgba(244, 241, 249, 0.94);
+    background-color: rgba(255, 255, 255, 0.055);
+    border: 1px solid rgba(255, 255, 255, 0.065);
+    border-radius: 10px;
+    padding: 7px 10px;
+    font-size: 9.2pt;
+    line-height: 1.45;
+}
+
+.setup-stage-text {
+    color: rgba(210, 205, 220, 0.68);
+    font-size: 9pt;
+    line-height: 1.5;
+}
+
+.setup-stage-tool {
+    background-color: rgba(0, 0, 0, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.045);
+    border-radius: 8px;
+    padding: 5px 8px;
+}
+
+.setup-step-num {
+    color: rgba(185, 167, 245, 0.58);
+    font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
+    font-size: 6.4pt;
+}
+
+.setup-tool-name {
+    color: rgba(220, 215, 230, 0.72);
+    font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
+    font-size: 7.4pt;
+}
+
+.setup-tool-meta {
+    color: rgba(180, 174, 192, 0.38);
+    font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
+    font-size: 6.8pt;
+}
+
+.setup-status-dot {
+    min-width: 5px;
+    min-height: 5px;
+    border-radius: 99px;
+    background-color: rgba(150, 220, 170, 0.68);
+}
+
+.setup-badge {
+    color: rgba(190, 184, 202, 0.48);
+    background-color: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 99px;
+    padding: 1px 7px;
+    font-size: 6.2pt;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+}
+
+/* 能力宫格 */
+
+.setup-tile {
+    background-image: linear-gradient(
+        155deg, rgba(255, 255, 255, 0.040), rgba(255, 255, 255, 0.014));
     border: 1px solid rgba(255, 255, 255, 0.060);
     border-radius: 12px;
-    padding: 11px 12px;
+    padding: 10px 10px 9px 10px;
+    transition-property: border-color, background-color;
+    transition-duration: 150ms;
+}
+
+.setup-tile:hover {
+    border-color: rgba(185, 167, 245, 0.24);
+    background-color: rgba(255, 255, 255, 0.035);
+}
+
+.setup-tile-index {
+    color: rgba(190, 184, 202, 0.28);
+    font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
+    font-size: 6.4pt;
+}
+
+.setup-tile-key {
+    color: rgba(185, 167, 245, 0.92);
+    font-size: 13pt;
+    font-weight: 600;
+}
+
+.setup-tile-title {
+    color: rgba(232, 228, 242, 0.84);
+    font-size: 9pt;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+
+.setup-tile-text {
+    color: rgba(196, 190, 210, 0.50);
+    font-size: 7.4pt;
+    line-height: 1.45;
+}
+
+/* 外观提示 */
+
+.setup-callout {
+    background-image: linear-gradient(
+        145deg, rgba(185, 167, 245, 0.12), rgba(255, 255, 255, 0.016));
+    border: 1px solid rgba(185, 167, 245, 0.18);
+    border-radius: 14px;
+    padding: 12px 13px;
+}
+
+.setup-callout-title {
+    color: rgba(238, 234, 248, 0.88);
+    font-size: 9pt;
+    font-weight: 600;
+}
+
+.setup-callout-text {
+    color: rgba(206, 200, 218, 0.66);
+    font-size: 8.3pt;
+    line-height: 1.55;
+}
+
+.setup-preset-dot {
+    font-size: 9pt;
+}
+
+/* ---------------- 外观 ---------------- */
+
+.setup-preview {
+    background-image: linear-gradient(
+        160deg, rgba(185, 167, 245, 0.10), rgba(255, 255, 255, 0.018) 55%);
+    border: 1px solid rgba(255, 255, 255, 0.085);
+    border-radius: 16px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
+}
+
+.setup-preview-bar {
+    min-height: 2px;
+    margin: 12px 12px 0 12px;
+    border-radius: 99px;
+    background-color: rgba(185, 167, 245, 0.70);
+}
+
+.setup-preview-body {
+    padding: 9px 12px 12px 12px;
+}
+
+.setup-preview-status {
+    color: rgba(185, 167, 245, 0.74);
+    background-color: rgba(185, 167, 245, 0.08);
+    border-color: rgba(185, 167, 245, 0.16);
 }
 
 .setup-mock-status {
@@ -619,161 +905,372 @@ button.setup-close:hover {
 }
 
 .setup-mock-user {
-    color: rgba(242, 239, 248, 0.92);
-    background-color: rgba(255, 255, 255, 0.06);
+    color: rgba(244, 241, 249, 0.93);
+    background-color: rgba(255, 255, 255, 0.065);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 10px;
+    border-radius: 11px;
     padding: 5px 9px;
     font-size: 8.5pt;
 }
 
 .setup-mock-text {
-    color: rgba(240, 238, 246, 0.90);
+    color: rgba(240, 238, 246, 0.88);
     font-size: 8.5pt;
     line-height: 1.45;
 }
 
 .setup-mock-tool {
-    color: rgba(228, 224, 238, 0.72);
+    color: rgba(228, 224, 238, 0.70);
     font-size: 8pt;
 }
 
 .setup-mock-detail {
-    color: rgba(185, 180, 196, 0.45);
+    color: rgba(185, 180, 196, 0.44);
     font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
-    font-size: 7.5pt;
+    font-size: 7.4pt;
 }
 
-.setup-preview {
-    background-color: rgba(255, 255, 255, 0.026);
-    border: 1px dashed rgba(185, 167, 245, 0.22);
-    border-radius: 12px;
-    padding: 10px 12px;
-}
-
-/* 预设与控件 */
+/* 预设 */
 
 button.preset {
-    background-color: rgba(255, 255, 255, 0.030);
-    background-image: none;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 9px;
+    background-image: linear-gradient(
+        150deg, rgba(255, 255, 255, 0.040), rgba(255, 255, 255, 0.014));
+    background-color: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.065);
+    border-radius: 12px;
     box-shadow: none;
-    padding: 7px 9px;
+    min-height: 56px;
+    padding: 8px 9px;
+    transition-property: border-color, background-color;
+    transition-duration: 140ms;
+}
+
+button.preset:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.13);
+}
+
+button.preset.active {
+    border-color: rgba(185, 167, 245, 0.50);
+    background-image: linear-gradient(
+        150deg, rgba(185, 167, 245, 0.16), rgba(185, 167, 245, 0.035));
+}
+
+.setup-preset-check {
+    color: transparent;
+    font-size: 7pt;
+    font-weight: 700;
+}
+
+button.preset.active .setup-preset-check {
+    color: rgba(185, 167, 245, 0.90);
+}
+
+.setup-preset-name {
+    color: rgba(226, 222, 236, 0.76);
+    font-size: 8pt;
+    font-weight: 500;
+}
+
+button.preset.active .setup-preset-name {
+    color: rgba(244, 241, 249, 0.94);
+}
+
+/* 微调 */
+
+.setup-slider {
+    margin: 2px 0;
+}
+
+scale {
+    min-height: 22px;
+}
+
+scale trough {
+    background-color: rgba(255, 255, 255, 0.075);
+    border-radius: 99px;
+    min-height: 4px;
+}
+
+scale highlight {
+    background-color: rgba(185, 167, 245, 0.60);
+    border-radius: 99px;
+}
+
+scale slider {
+    background-color: rgba(226, 220, 245, 0.94);
+    border: 2px solid rgba(24, 22, 32, 0.55);
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
+    min-width: 13px;
+    min-height: 13px;
+    border-radius: 99px;
+    margin: -4px 0;
+}
+
+/* 主色 */
+
+button.setup-swatch {
+    background-color: rgba(0, 0, 0, 0.18);
+    background-image: none;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow: none;
+    border-radius: 99px;
+    min-width: 28px;
+    min-height: 28px;
+    padding: 0;
     transition-property: border-color, background-color;
     transition-duration: 130ms;
 }
 
-button.preset:hover {
-    background-color: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.12);
-}
-
-button.preset.active {
-    border-color: rgba(185, 167, 245, 0.46);
-    background-color: rgba(185, 167, 245, 0.10);
-}
-
-.setup-preset-name {
-    color: rgba(228, 224, 238, 0.80);
-    font-size: 8.5pt;
-}
-
-button.setup-swatch {
-    background: transparent;
-    background-image: none;
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    box-shadow: none;
-    border-radius: 99px;
-    min-width: 22px;
-    min-height: 22px;
-    padding: 0;
-    font-size: 9pt;
+button.setup-swatch label {
+    font-size: 11pt;
 }
 
 button.setup-swatch:hover {
-    background-color: rgba(185, 167, 245, 0.14);
-    border-color: rgba(185, 167, 245, 0.30);
+    background-color: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.20);
+}
+
+button.setup-swatch.active {
+    border: 2px solid rgba(185, 167, 245, 0.90);
+    background-color: rgba(185, 167, 245, 0.10);
+}
+
+.setup-accent-field {
+    background-color: rgba(0, 0, 0, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.075);
+    border-radius: 10px;
+    min-height: 34px;
+    padding: 0 10px;
+    transition-property: border-color, background-color;
+    transition-duration: 150ms;
+}
+
+.setup-accent-field:focus-within {
+    border-color: rgba(185, 167, 245, 0.34);
+    background-color: rgba(0, 0, 0, 0.22);
+}
+
+.setup-accent-preview {
+    font-size: 12pt;
 }
 
 button.setup-toggle {
-    background-color: rgba(255, 255, 255, 0.030);
+    background-color: rgba(0, 0, 0, 0.14);
     background-image: none;
     border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: 7px;
+    border-radius: 10px;
     box-shadow: none;
-    padding: 3px 10px;
-    color: rgba(214, 209, 224, 0.72);
+    min-height: 34px;
+    padding: 3px 8px;
+    color: rgba(210, 205, 220, 0.68);
     font-size: 8.5pt;
+    font-weight: 500;
+    transition-property: color, background-color, border-color;
+    transition-duration: 140ms;
+}
+
+button.setup-toggle:hover {
+    color: rgba(240, 237, 246, 0.86);
+    background-color: rgba(255, 255, 255, 0.045);
 }
 
 button.setup-toggle:checked {
     background-color: rgba(185, 167, 245, 0.16);
     border-color: rgba(185, 167, 245, 0.36);
-    color: rgba(232, 226, 250, 0.95);
+    color: rgba(244, 241, 249, 0.95);
 }
 
-scale trough {
-    background-color: rgba(255, 255, 255, 0.07);
+/* ---------------- 快捷键 ---------------- */
+
+.setup-keyvisual {
+    background-color: rgba(0, 0, 0, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 8px 10px;
+}
+
+.setup-keycap {
+    color: rgba(238, 234, 248, 0.90);
+    background-image: linear-gradient(
+        180deg, rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.035));
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 8px;
+    padding: 4px 9px;
+    font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
+    font-size: 7.8pt;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.22);
+}
+
+.setup-keyarrow {
+    color: rgba(185, 167, 245, 0.72);
+    font-size: 12pt;
+}
+
+.setup-code-card {
+    padding: 11px 12px;
+}
+
+.setup-code-title {
+    color: rgba(220, 215, 230, 0.68);
+    font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
+    font-size: 7.8pt;
+}
+
+.setup-code {
+    color: rgba(200, 195, 214, 0.64);
+    background-color: rgba(0, 0, 0, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 9px;
+    padding: 9px 10px;
+    font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
+    font-size: 7pt;
+    line-height: 1.5;
+}
+
+/* ---------------- 完成 ---------------- */
+
+.setup-done-hero {
+    padding: 2px 0 4px 0;
+}
+
+.setup-done-check {
+    min-width: 46px;
+    min-height: 46px;
     border-radius: 99px;
-    min-height: 3px;
+    background-color: rgba(185, 167, 245, 0.12);
+    border: 1px solid rgba(185, 167, 245, 0.30);
+    color: rgba(197, 183, 250, 0.92);
+    font-size: 18pt;
+    box-shadow: 0 0 22px rgba(185, 167, 245, 0.14);
 }
 
-scale highlight {
-    background-color: rgba(185, 167, 245, 0.58);
-    border-radius: 99px;
+.setup-done-row {
+    padding: 3px 0;
 }
 
-scale slider {
-    background-color: rgba(226, 220, 245, 0.92);
-    border: none;
-    box-shadow: none;
-    min-width: 11px;
-    min-height: 11px;
-    border-radius: 99px;
-    margin: -4px 0;
+.setup-done-mark {
+    color: rgba(150, 220, 170, 0.72);
+    font-size: 9pt;
+    min-width: 16px;
 }
 
-/* 底部导航 */
+.setup-done-value {
+    color: rgba(206, 200, 218, 0.68);
+    font-size: 8.3pt;
+    line-height: 1.45;
+}
+
+/* ---------------- 模型隐私卡 ---------------- */
+
+.setup-privacy {
+    background-image: linear-gradient(
+        150deg, rgba(150, 220, 170, 0.055), rgba(255, 255, 255, 0.014));
+    border: 1px solid rgba(150, 220, 170, 0.12);
+    border-radius: 13px;
+    padding: 11px 12px;
+}
+
+.setup-privacy-badge {
+    color: rgba(159, 216, 176, 0.78);
+    background-color: rgba(150, 220, 170, 0.07);
+    border-color: rgba(150, 220, 170, 0.14);
+}
+
+/* ---------------- 导航 ---------------- */
 
 .setup-footer {
-    margin: 4px 16px 14px 16px;
+    margin: 7px 18px 15px 18px;
+}
+
+.setup-footer-hint {
+    color: rgba(180, 174, 192, 0.30);
+    font-size: 7.2pt;
 }
 
 button.setup-next {
-    background-color: rgba(185, 167, 245, 0.14);
-    background-image: none;
-    border: 1px solid rgba(185, 167, 245, 0.28);
-    border-radius: 8px;
-    box-shadow: none;
-    color: rgba(232, 226, 250, 0.94);
-    padding: 4px 14px;
+    background-image: linear-gradient(
+        135deg, rgba(185, 167, 245, 0.26), rgba(185, 167, 245, 0.12));
+    background-color: transparent;
+    border: 1px solid rgba(185, 167, 245, 0.38);
+    border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(185, 167, 245, 0.10);
+    color: rgba(247, 243, 255, 0.96);
+    min-height: 34px;
+    padding: 4px 16px;
     font-size: 9pt;
-    font-weight: 500;
+    font-weight: 600;
+    letter-spacing: 0.2px;
     transition-property: background-color, border-color;
-    transition-duration: 130ms;
+    transition-duration: 140ms;
 }
 
 button.setup-next:hover {
-    background-color: rgba(185, 167, 245, 0.22);
-    border-color: rgba(185, 167, 245, 0.44);
+    background-image: linear-gradient(
+        135deg, rgba(185, 167, 245, 0.34), rgba(185, 167, 245, 0.18));
+    border-color: rgba(185, 167, 245, 0.56);
+}
+
+button.setup-next:active {
+    background-image: linear-gradient(
+        135deg, rgba(185, 167, 245, 0.22), rgba(185, 167, 245, 0.10));
 }
 
 button.setup-next:disabled {
+    background-image: none;
     background-color: rgba(255, 255, 255, 0.03);
     border-color: rgba(255, 255, 255, 0.06);
-    color: rgba(214, 209, 224, 0.32);
+    color: rgba(214, 209, 224, 0.30);
+    box-shadow: none;
+}
+
+button.setup-ghost {
+    background-color: transparent;
+    background-image: none;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    box-shadow: none;
+    color: rgba(206, 200, 218, 0.62);
+    min-height: 34px;
+    padding: 4px 12px;
+    font-size: 8.3pt;
+    font-weight: 500;
+    transition-property: color, background-color, border-color;
+    transition-duration: 140ms;
+}
+
+button.setup-ghost:hover {
+    color: rgba(240, 237, 246, 0.90);
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
+button.setup-secondary {
+    background-color: rgba(255, 255, 255, 0.045);
+    background-image: none;
+    border: 1px solid rgba(255, 255, 255, 0.075);
+    border-radius: 9px;
+    box-shadow: none;
+    color: rgba(226, 222, 236, 0.78);
+    min-height: 32px;
+    padding: 2px 12px;
+    font-size: 8.3pt;
+}
+
+button.setup-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: rgba(244, 241, 249, 0.94);
 }
 
 button.setup-profile {
     background-color: rgba(255, 255, 255, 0.030);
     background-image: none;
     border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 7px;
+    border-radius: 8px;
     box-shadow: none;
-    color: rgba(214, 209, 224, 0.80);
+    color: rgba(214, 209, 224, 0.78);
     padding: 3px 9px;
-    font-size: 8.5pt;
+    font-size: 8.3pt;
 }
 
 button.setup-profile:hover {
@@ -786,26 +1283,15 @@ button.setup-mini {
     background-image: none;
     border: 1px solid transparent;
     box-shadow: none;
-    color: rgba(190, 184, 202, 0.45);
+    color: rgba(190, 184, 202, 0.42);
     padding: 2px 7px;
-    font-size: 7.5pt;
+    font-size: 7.4pt;
     border-radius: 6px;
 }
 
 button.setup-mini:hover {
     color: rgba(240, 160, 158, 0.90);
     background-color: rgba(240, 160, 158, 0.08);
-}
-
-.setup-code {
-    color: rgba(200, 195, 214, 0.66);
-    background-color: rgba(0, 0, 0, 0.20);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-    padding: 8px 9px;
-    font-family: "Noto Sans Mono CJK SC", "Noto Sans Mono", monospace;
-    font-size: 7pt;
-    line-height: 1.45;
 }
 
 entry > text > selection {

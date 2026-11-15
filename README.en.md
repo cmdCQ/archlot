@@ -157,7 +157,7 @@ dialog:
    and how appearance customization works
 2. **Model**: API base, key, model, workspace; saved to
    `~/.config/archlot/config.json` (mode 600) and applied immediately
-3. **Appearance**: presets, opacity, radius, font scale, accent, noise and blur
+3. **Appearance**: presets, opacity, radius, font scale, accent / background HEX, noise and blur
    toggles with live preview; save the current look as the default or as named
    profiles such as `work` and `night`
 4. **Copilot key**: generate and write the niri config; it skips files that already
