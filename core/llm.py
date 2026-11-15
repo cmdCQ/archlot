@@ -34,11 +34,8 @@ def _open(req):
             raise LLMError(f"连接失败：{exc}") from None
 
 
-def stream_chat(cfg, messages, tools=None, on_text=None, on_reason=None, cancel=None):
-    """发一轮请求，返回 (assistant_message, finish_reason)。
-
-    on_text/on_reason 会在每个增量上被调用（在网络线程里）。
-    """
+def build_body(cfg, messages, tools=None, effort=None):
+    """构造请求体。default 不发 reasoning_effort；只有 low/high 显式覆盖。"""
     body = {
         "model": _get(cfg, "model"),
         "messages": messages,
@@ -48,6 +45,19 @@ def stream_chat(cfg, messages, tools=None, on_text=None, on_reason=None, cancel=
     if tools:
         body["tools"] = tools
         body["tool_choice"] = "auto"
+    if effort in ("low", "high"):
+        body["reasoning_effort"] = effort
+    return body
+
+
+def stream_chat(cfg, messages, tools=None, on_text=None, on_reason=None,
+                cancel=None, effort=None):
+    """发一轮请求，返回 (assistant_message, finish_reason)。
+
+    on_text/on_reason 会在每个增量上被调用（在网络线程里）。
+    effort 由 agent 的 Effort 状态机给出；default 时省略该参数。
+    """
+    body = build_body(cfg, messages, tools, effort)
 
     req = urllib.request.Request(
         _get(cfg, "api_base").rstrip("/") + "/chat/completions",

@@ -23,8 +23,8 @@ def ok(text: str, **kw) -> ToolResult:
     return ToolResult(True, str(text), **kw)
 
 
-def fail(text: str, error_kind: str = "exception") -> ToolResult:
-    return ToolResult(False, str(text), error_kind=error_kind)
+def fail(text: str, error_kind: str = "exception", **kw) -> ToolResult:
+    return ToolResult(False, str(text), error_kind=error_kind, **kw)
 
 
 @dataclass
@@ -54,3 +54,4 @@ class UI(Protocol):
     def notice(self, text: str) -> None: ...
     def error(self, text: str) -> None: ...
     def cancelling(self) -> None: ...
+    def effort_changed(self, level: str, reason: str = "") -> None: ...

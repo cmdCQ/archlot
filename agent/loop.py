@@ -15,6 +15,7 @@ import time
 from core import llm
 from core.config import HABITS_PATH, atomic_write_json
 from core.contracts import UI, fail
+from .effort import Effort
 from .history import MessageHistory
 from .prompts import EXTRACT_PROMPT, SUMMARY_PROMPT, SYSTEM_PROMPT
 
@@ -46,6 +47,11 @@ class Agent:
         self.memory = memory
         self.policy = policy
         self.history = MessageHistory()
+        self.effort = Effort(
+            enabled=getattr(cfg, "adaptive_effort", False),
+            low_after=getattr(cfg, "effort_low_after", 3),
+            hold_requests=getattr(cfg, "effort_hold_requests", 2),
+        )
         self._cancel = threading.Event()
         self._lock = threading.Lock()
         self._gen = 0
@@ -107,6 +113,7 @@ class Agent:
                 return
             if hasattr(self.tools, "begin_turn"):
                 self.tools.begin_turn()
+            self.effort.begin_turn()
             self._habit_check(text)
             try:
                 mem_ctx = self.memory.context_for(text) or "（暂无）"
@@ -131,15 +138,20 @@ class Agent:
                 payload = [{"role": "system",
                             "content": self._system_prompt(mem_ctx)}]
                 payload += self.history.payload()
+                level, effort_reason = self.effort.next_level()
+                if effort_reason:
+                    log.info("effort -> %s: %s", level, effort_reason)
+                    self.ui.effort_changed(level, effort_reason)
                 t0 = time.time()
                 msg, finish = llm.stream_chat(
                     self.cfg, payload, self.tools.schemas(),
                     on_text=lambda t: self._text_delta(t, gen),
                     on_reason=lambda t: self._reason_delta(t, gen),
                     cancel=self._cancel,
+                    effort=level,
                 )
-                log.info("turn=%s llm %.2fs finish=%s",
-                         gen, time.time() - t0, finish)
+                log.info("turn=%s effort=%s llm %.2fs finish=%s",
+                         gen, level, time.time() - t0, finish)
                 if self._cancel.is_set() or gen != self._gen:
                     break
                 calls = msg.get("tool_calls")
@@ -158,6 +170,7 @@ class Agent:
                 self.history.add_assistant(msg)
 
                 pending_images = []
+                batch_results = []
                 for tc in calls:
                     if self._cancel.is_set() or gen != self._gen:
                         break
@@ -167,6 +180,7 @@ class Agent:
                     except json.JSONDecodeError as exc:
                         self.ui.tool_started(name, {})
                         result = fail(f"参数不是合法 JSON：{exc}", "bad_args")
+                        batch_results.append(result)
                         self.history.add_tool(tc["id"], result.text)
                         self.ui.tool_finished(result)
                         issues.append(f"{name}: {result.text[:200]}")
@@ -179,6 +193,7 @@ class Agent:
                     result = self.tools.execute(name, args)
                     if gen != self._gen:
                         return
+                    batch_results.append(result)
                     self.history.add_tool(tc["id"], result.text)
                     self.ui.tool_finished(result)
                     if (not result.ok and
@@ -189,6 +204,11 @@ class Agent:
                     if result.image:
                         pending_images.append(
                             (result.image, result.meta.get("frame")))
+
+                level, effort_reason = self.effort.note_batch(batch_results)
+                if effort_reason:
+                    log.info("effort -> %s: %s", level, effort_reason)
+                    self.ui.effort_changed(level, effort_reason)
 
                 # 所有 tool 消息必须紧跟上一条 assistant，图片只能之后补
                 if pending_images:

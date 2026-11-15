@@ -40,6 +40,25 @@ TOOLS = [
         }},
     }},
     {"type": "function", "function": {
+        "name": "ui",
+        "description": "通用桌面可访问层：对暴露 AT-SPI 的原生应用/浏览器按语义操作，比坐标点击稳。snapshot 返回 snap 编号和 eN 引用（ref），之后 click/set_text/select/read/focus/scroll 带 ref。没有可访问性树时会明确提示，改用 screenshot。apps 可查看当前哪些应用暴露了树。ref 只在这次 snapshot 有效。",
+        "parameters": {"type": "object", "properties": {
+            "action": {"type": "string",
+                       "enum": ["snapshot", "apps", "click", "focus", "read",
+                                "set_text", "select", "scroll"]},
+            "window": {"type": "string",
+                       "description": "snapshot 的目标窗口：id / app_id / 标题片段；默认焦点窗口"},
+            "snap": {"type": "integer",
+                     "description": "snapshot 返回的 snap；省略用最新一次"},
+            "ref": {"type": "string",
+                    "description": "snapshot 里的元素引用，例如 e5"},
+            "text": {"type": "string", "description": "set_text 要写入的文本"},
+            "option": {"type": "string", "description": "select 要选的选项文字"},
+            "dy": {"type": "integer", "description": "scroll 纵向格数，正数向下"},
+            "dx": {"type": "integer", "description": "scroll 横向格数"},
+        }, "required": ["action"]},
+    }},
+    {"type": "function", "function": {
         "name": "click",
         "description": "用鼠标点击屏幕。坐标是截图图片像素，必须带 frame。只保证事件发出，不保证点中目标；关键操作后截图确认。",
         "parameters": {"type": "object", "properties": {

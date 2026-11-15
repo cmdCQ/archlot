@@ -54,6 +54,8 @@ class Panel:
         self._confirm_ok = False
         self._status_start = 0.0
         self._status_timer = 0
+        self._effort = "default"
+        self._effort_reason = ""
 
         self._stream_label = None
         self._stream_raw = ""
@@ -357,6 +359,9 @@ class Panel:
     def cancelling(self):
         self._ui(self._cancelling_main)
 
+    def effort_changed(self, level, reason=""):
+        self._ui(self._effort_changed_main, level, reason)
+
     # ------------------------------------------------------------ 一轮开始/结束
 
     def _reset_stream_state(self):
@@ -379,9 +384,12 @@ class Panel:
         self._reason_buf = ""
         self.narration.set_visible(False)
         self._status_start = time.time()
+        self._effort = "default"
+        self._effort_reason = ""
+        self.status.set_tooltip_text("")
         if not self._status_timer:
             self._status_timer = GLib.timeout_add(1000, self._tick_status)
-        self.status.set_text("思考中 0s")
+        self.status.set_text(self._status_text(0))
         self.status.set_visible(True)
         self.thinking_dot.set_visible(True)
         self.spinner.set_visible(True)
@@ -422,6 +430,19 @@ class Panel:
         self.status.set_text("正在停止…")
         self.status.set_visible(True)
 
+    def _status_text(self, elapsed):
+        suffix = {"low": " · 强度低", "high": " · 强度高"}.get(
+            self._effort, "")
+        return f"思考中 {elapsed}s{suffix}"
+
+    def _effort_changed_main(self, level, reason=""):
+        self._effort = str(level or "default")
+        self._effort_reason = reason or ""
+        self.status.set_tooltip_text(self._effort_reason)
+        if self._busy and not self._awaiting_confirm:
+            elapsed = int(time.time() - self._status_start)
+            self.status.set_text(self._status_text(elapsed))
+
     def _tick_status(self):
         if not self._busy:
             self._status_timer = 0
@@ -430,7 +451,7 @@ class Panel:
             self.status.set_text("等待确认")
         else:
             elapsed = int(time.time() - self._status_start)
-            self.status.set_text(f"思考中 {elapsed}s")
+            self.status.set_text(self._status_text(elapsed))
         return True
 
     # ------------------------------------------------------------ 用户输入
@@ -541,7 +562,8 @@ class Panel:
         self._awaiting_confirm = False
         self.confirm_revealer.set_reveal_child(False)
         if self._busy:
-            self.status.set_text("思考中")
+            elapsed = int(time.time() - self._status_start)
+            self.status.set_text(self._status_text(elapsed))
             self.status.set_visible(True)
 
     def _answer_confirm(self, allowed):
@@ -549,7 +571,8 @@ class Panel:
         self.confirm_revealer.set_reveal_child(False)
         self._confirm_ok = allowed
         if self._busy:
-            self.status.set_text("思考中")
+            elapsed = int(time.time() - self._status_start)
+            self.status.set_text(self._status_text(elapsed))
         if self._confirm_event is not None:
             self._confirm_event.set()
 

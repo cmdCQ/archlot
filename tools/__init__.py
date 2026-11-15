@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from core import system
 from core.contracts import ToolContext, ToolResult, fail, ok
+from . import a11y as a11y_tool
 from . import desktop, files, recall
 from .devices import VirtualMouse
 from .schema import TOOLS
@@ -44,6 +45,7 @@ HANDLERS = {
     "focus_window": desktop.focus_window,
     "panel": desktop.panel,
     "memory": recall.memory,
+    "ui": a11y_tool.ui,
 }
 
 
@@ -51,6 +53,7 @@ class Tools:
     def __init__(self, ctx: ToolContext):
         self.ctx = ctx
         self._mouse = None
+        self._a11y = None
         self._shot_seq = 0
         self._shots: dict[int, Shot] = {}
         self.last_frame: int | None = None
@@ -62,10 +65,18 @@ class Tools:
             self._mouse = VirtualMouse()
         return self._mouse
 
+    @property
+    def a11y(self):
+        if self._a11y is None:
+            self._a11y = a11y_tool.A11y()
+        return self._a11y
+
     def begin_turn(self) -> None:
-        """新一轮清空截图缓存；旧 frame 不允许跨轮复用。"""
+        """新一轮清空截图/快照缓存；旧 frame 和 ref 不允许跨轮复用。"""
         self._shots.clear()
         self.last_frame = None
+        if self._a11y is not None:
+            self._a11y.begin_turn()
         system.cleanup_shots()
 
     def add_shot(self, path: str, image_size, screen_size,

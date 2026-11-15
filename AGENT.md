@@ -14,6 +14,7 @@ core/                     与界面、对话无关的底层
   memory.py               SQLite FTS5 长期记忆
 agent/                    一轮对话怎么跑
   loop.py                 轮次、预算、队列、取消、记忆后处理
+  effort.py               自适应思考强度状态机（纯逻辑）
   history.py              MessageHistory（配对/裁剪/截图）
   prompts.py              提示词字符串
 tools/                    动作怎么执行
@@ -22,6 +23,7 @@ tools/                    动作怎么执行
   policy.py               allow / ask / deny
   files.py                shell、读写、列目录
   desktop.py              截图、鼠标、键盘、窗口、面板
+  a11y.py                 AT-SPI 快照/语义动作（唯一 gi 例外）
   recall.py               memory 工具
   devices.py              uinput、wtype、剪贴板
 ui/                       唯一碰 GTK 的地方
@@ -46,8 +48,10 @@ ui         ──► core
 ## 硬规矩
 
 1. **GTK 只在 `ui/` 里碰。** `agent/`、`tools/`、`core/` 不 import gi。
-   跨线程更新界面只能通过 `UI` 端口；`Panel` 自己用 `_ui` / `_main_sync` 切主线程。
-   主线程禁止跑 `niri`、`grim`、`wtype`、shell 等子进程；要跑就丢 worker。
+   唯一例外是 `tools/a11y.py`：只允许 `gi.repository.Atspi`，不创建 GTK 控件，
+   只在 worker 线程调用。跨线程更新界面只能通过 `UI` 端口；`Panel` 自己用
+   `_ui` / `_main_sync` 切主线程。主线程禁止跑 `niri`、`grim`、`wtype`、
+   shell 等子进程；要跑就丢 worker。
 
 2. **不要在 UI 线程里 sleep 等同步。** worker 要等主线程结果用 `_main_sync`；
    等合成器处理显隐用 `_main_sync_after`。不要用 `time.sleep` 猜时序。
@@ -81,6 +85,27 @@ ui         ──► core
    Pango span alpha 用 1–65535（不可见用 1；0/0%/65536 会让整段 markup 解析失败）；
    niri 会夹取浮动窗口，隐藏靠淡出 + unmap。
 
+## 桌面操作优先级
+
+1. 有 AT-SPI 树：`ui(action="snapshot")` → `ui` 的 click/set_text/select/read/focus。
+   这是语义层，优先于坐标；ref 只对一次 snapshot 有效。
+2. 没有树或元素不可动作：`screenshot` → `click/move_mouse`，坐标必须带 frame。
+3. 文件和系统操作：`run_shell` / 文件工具。
+4. `ui` 不会替应用“假装成功”：没树、没动作、回读不一致都返回结构化失败，
+   让模型退回截图，不要猜 ref 或坐标。
+
+注意：浏览器要暴露 AT-SPI 通常需要开启系统辅助功能；用户现有浏览器配置不主动改。
+坐标点击只代表事件已发出，关键操作后要截图或 `ui read` 确认。
+
+## 自适应思考强度
+
+- 状态机在 `agent/effort.py`，是纯逻辑，不猜任务难度，只消费工具结果 meta：
+  连续 3 个纯动作批次 → `low`；失败/stale → `high` 保持 2 次请求；
+  观察/查询/混合批次不切换；denied/cancelled 不升级。
+- `default` 不发 `reasoning_effort`；只有 `low` / `high` 显式发送。
+- `adaptive_effort` 默认关闭。开启后 UI 状态栏会显示“强度低/高”，变化写日志。
+- 不要在工具名或轮数上另猜强度；要改规则只改这个状态机和它的测试。
+
 ## 记忆
 
 - `Memory.search` 查不到就返回空，不要回退到“最近事实”；无关记忆不能进每轮上下文。
@@ -92,8 +117,8 @@ ui         ──► core
 
 ## 加一个工具
 
-1. 在 `tools/files.py`、`tools/desktop.py` 或 `tools/recall.py` 写
-   `def name(tools, args) -> ToolResult`。
+1. 在 `tools/files.py`、`tools/desktop.py`、`tools/a11y.py` 或
+   `tools/recall.py` 写 `def name(tools, args) -> ToolResult`。
 2. 在 `tools/schema.py` 的 `TOOLS` 里加 schema。
 3. 在 `tools/__init__.py` 的 `HANDLERS` 里登记。
 4. 涉及危险操作时只改 `Policy.review`，不要在工具里问确认。

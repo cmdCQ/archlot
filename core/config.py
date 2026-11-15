@@ -30,6 +30,9 @@ class Config:
     max_steps: int = 600
     max_turn_seconds: float = 600.0
     max_tool_seconds: int = 120
+    adaptive_effort: bool = False
+    effort_low_after: int = 3
+    effort_hold_requests: int = 2
 
     @classmethod
     def load(cls, path: str = CONFIG_PATH) -> "Config":

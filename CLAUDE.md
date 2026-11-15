@@ -18,8 +18,8 @@ bin/archlot --daemon      # 只驻留，不显示
 ```
 archlot.py        入口 + 接线
 core/             config / contracts / system / llm / memory
-agent/            loop / history / prompts
-tools/            policy / files / desktop / recall / devices / schema
+agent/            loop / effort / history / prompts
+tools/            policy / files / desktop / a11y / recall / devices / schema
 ui/               panel / chat / markdown / sound
 ```
 
@@ -42,10 +42,12 @@ ui/               panel / chat / markdown / sound
 6. **niri 会夹取浮动窗口**，隐藏用“淡出 + unmap”，不要依赖位移。
 7. **`wl-copy` 会 fork**，必须丢 stdout/stderr，否则管道不关会卡到超时。
 8. **noVNC / KVM 不认 wtype 虚拟键盘**，用 `method="keys"` 走 uinput 真实键码。
+9. **AT-SPI 只允许在 `tools/a11y.py` 里 import**，只在 worker 线程用，
+   不创建 GTK 控件。有可访问性树时 `ui` 优先；没树就明确退回截图。
 
-## 工具（14 个）
+## 工具（15 个）
 
-`run_shell` `read_file` `write_file` `list_dir` `screenshot` `click`
+`run_shell` `read_file` `write_file` `list_dir` `screenshot` `ui` `click`
 `move_mouse` `scroll` `type_text` `press_key` `list_windows` `focus_window`
 `panel` `memory`
 

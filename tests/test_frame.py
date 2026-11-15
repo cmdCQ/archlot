@@ -1,3 +1,4 @@
+import os
 import tempfile
 import unittest
 
@@ -70,8 +71,8 @@ class FrameTest(unittest.TestCase):
     def test_shot_paths_are_unique(self):
         a = system.new_shot_path()
         b = system.new_shot_path()
-        self.addCleanup(lambda: [system.os.unlink(p) for p in (a, b)
-                                 if system.os.path.exists(p)])
+        self.addCleanup(lambda: [os.unlink(p) for p in (a, b)
+                                 if os.path.exists(p)])
         self.assertNotEqual(a, b)
 
 

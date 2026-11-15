@@ -49,6 +49,9 @@ class FakeUI:
     def cancelling(self):
         pass
 
+    def effort_changed(self, level, reason=""):
+        self.events.append(("effort", level, reason))
+
 
 class FakeTools:
     def __init__(self):
@@ -59,7 +62,7 @@ class FakeTools:
 
     def execute(self, name, args):
         self.calls.append((name, args))
-        return ok("done")
+        return ok("done", meta={"kind": "act", "effect": "sent"})
 
 
 class FakeMemory:
@@ -115,6 +118,43 @@ class AgentTurnTest(unittest.TestCase):
                 [m["role"] for m in agent.history.items],
                 ["user", "assistant", "tool", "assistant"])
             self.assertEqual(ui.errors, [])
+
+    def test_adaptive_effort_reaches_llm_and_ui(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        cfg = Config(workspace=tmp.name, max_steps=8, max_turn_seconds=5,
+                     adaptive_effort=True)
+        ui = FakeUI()
+        tools = FakeTools()
+
+        def tool_call(index):
+            return ({"role": "assistant", "content": None,
+                     "reasoning_content": "",
+                     "tool_calls": [{
+                         "id": f"c{index}", "type": "function",
+                         "function": {"name": "run_shell",
+                                      "arguments": "{}"},
+                     }]}, "tool_calls")
+
+        responses = [tool_call(1), tool_call(2), tool_call(3),
+                     ({"role": "assistant", "content": "ok"}, "stop")]
+        levels = []
+
+        def fake_stream(*args, **kwargs):
+            levels.append(kwargs.get("effort"))
+            msg, finish = responses.pop(0)
+            return msg, finish
+
+        with mock.patch("agent.loop.llm.stream_chat", side_effect=fake_stream), \
+                mock.patch("agent.loop.HABITS_PATH",
+                           os.path.join(tmp.name, "habits.json")):
+            agent = Agent(cfg, ui, tools, FakeMemory(), Policy(cfg))
+            agent.submit("run")
+            self.assertTrue(ui.done.wait(3), "turn did not finish")
+
+        self.assertEqual(levels, ["default", "default", "default", "low"])
+        self.assertIn(("effort", "low", "连续简单动作，降低思考强度"),
+                      ui.events)
 
 
 if __name__ == "__main__":
