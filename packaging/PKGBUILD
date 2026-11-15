@@ -1,0 +1,44 @@
+# Maintainer: cmdCQ
+# Arch 包模板：makepkg -si
+# 程序装到 /usr/share/archlot，/usr/bin 下只放两个软链接。
+pkgname=archlot-git
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Local AI agent that lives on the niri Wayland desktop"
+arch=('any')
+url="https://github.com/cmdCQ/archlot"
+license=('MIT')
+depends=('python' 'python-gobject' 'gtk4' 'at-spi2-core' 'grim'
+         'wtype' 'wl-clipboard' 'ffmpeg')
+makedepends=('git')
+optdepends=('fcitx5: Chinese input method support in the panel')
+provides=('archlot')
+conflicts=('archlot')
+source=("git+$url.git")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd archlot
+    printf 'r%s.%s' "$(git rev-list --count HEAD)" \
+        "$(git rev-parse --short HEAD)"
+}
+
+package() {
+    cd archlot
+    install -d "$pkgdir/usr/share/archlot"
+    cp -a archlot.py core agent tools ui style.css bin config.example.json \
+        README.md README.en.md LICENSE docs examples \
+        "$pkgdir/usr/share/archlot/"
+    find "$pkgdir/usr/share/archlot" -name __pycache__ -type d \
+        -exec rm -rf {} +
+
+    install -d "$pkgdir/usr/bin"
+    ln -s /usr/share/archlot/bin/archlot "$pkgdir/usr/bin/archlot"
+    ln -s /usr/share/archlot/bin/archlot-setup \
+        "$pkgdir/usr/bin/archlot-setup"
+
+    install -Dm644 packaging/archlot.desktop \
+        "$pkgdir/usr/share/applications/archlot.desktop"
+    install -Dm644 packaging/archlot.svg \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/archlot.svg"
+}

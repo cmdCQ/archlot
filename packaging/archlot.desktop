@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Archlot
+GenericName=Desktop AI Assistant
+Comment=A local AI agent for the niri Wayland desktop
+Exec=archlot --toggle
+Icon=archlot
+Terminal=false
+Categories=Utility;Accessibility;
+Keywords=AI;assistant;niri;wayland;automation;desktop;
+StartupNotify=false

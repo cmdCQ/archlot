@@ -1,0 +1,312 @@
+#!/usr/bin/env python3
+"""Archlot 配置向导：模型、默认外观、快捷键。
+
+纯终端交互，不弹 GUI。可以反复运行，已配置的值会作为默认值保留。
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import sys
+import time
+from getpass import getpass
+from pathlib import Path
+
+
+def find_root() -> Path:
+    env = os.environ.get("ARCHLOT_ROOT")
+    candidates = [
+        env,
+        Path(__file__).resolve().parent.parent,
+        Path.home() / ".local/share/archlot",
+        Path("/usr/local/share/archlot"),
+        Path("/usr/share/archlot"),
+    ]
+    for candidate in candidates:
+        if candidate and (Path(candidate) / "archlot.py").exists():
+            return Path(candidate).resolve()
+    sys.exit("找不到 Archlot 安装目录（archlot.py）。"
+             "可以设置 ARCHLOT_ROOT 指向它。")
+
+
+ROOT = find_root()
+sys.path.insert(0, str(ROOT))
+
+from core import setup as setup_lib  # noqa: E402
+from core.config import (APPEARANCE_PATH, APP_ID, ARCHLOT_VERSION,  # noqa: E402
+                         CONFIG_PATH, GEOM_PATH, atomic_write_json)
+from ui import appearance  # noqa: E402
+
+
+def read_json(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def ask(label, default=""):
+    hint = f" [{default}]" if default else ""
+    try:
+        value = input(f"{label}{hint}: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print("\n已取消。")
+        sys.exit(1)
+    return value or default
+
+
+def ask_secret(label, configured=""):
+    if configured:
+        print(f"{label} 已配置（{setup_lib.mask_key(configured)}），回车保留。")
+    try:
+        value = getpass(f"{label}: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print("\n已取消。")
+        sys.exit(1)
+    return value or configured
+
+
+def confirm(label, default=False):
+    suffix = "[Y/n]" if default else "[y/N]"
+    try:
+        answer = input(f"{label} {suffix} ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        print("\n已取消。")
+        sys.exit(1)
+    if not answer:
+        return default
+    return answer in ("y", "yes", "是")
+
+
+def use_color():
+    return sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+
+
+def swatch(color, enabled):
+    if not enabled:
+        return ""
+    try:
+        text = color.lstrip("#")
+        r, g, b = (int(text[i:i + 2], 16) for i in (0, 2, 4))
+    except (TypeError, ValueError):
+        return ""
+    return f"\033[48;2;{r};{g};{b}m      \033[0m"
+
+
+def show_tutorial():
+    print("""
+┌─ 快速上手 ────────────────────────────────────────────
+│ Archlot 住在桌面右侧，能看、能动、能干活：
+│   看   截图 + AT-SPI 可访问性树
+│   动   鼠标点击、滚动、输入、真实键码、切窗口
+│   干   跑 shell、读写文件、记住你的习惯
+│
+│ 基本操作
+│   Enter        发送
+│   Ctrl+L       清空上下文（长期记忆保留）
+│   Esc          取消任务 / 拒绝确认 / 收起面板
+│   拖标题栏      移动面板
+│   Copilot 键   随时召唤 / 收起（下一步会帮你绑定）
+│
+│ 自定义外观（这部分可以随时改）
+│   调字段：透明度 0.2-1.0、主色、背景色、圆角 0-28、
+│           字号 0.85-1.3x；磨砂模糊由 niri 负责
+│   直接说：“透明一点”“换个青色”“圆角小一点”
+│            “字大一点”“生成 niri 规则”
+│   调好了：“把现在的外观存成默认”
+│   玩坏了：“恢复默认外观”
+│   想留多套：“把外观存成 work”“换成 work”
+│
+│ 下面三步只配置最基础的东西，之后都能用一句话改。
+└───────────────────────────────────────────────────────
+""")
+    if sys.stdin.isatty():
+        try:
+            input("按 Enter 继续…")
+        except (EOFError, KeyboardInterrupt):
+            print("\n已取消。")
+            sys.exit(1)
+
+
+def current_state():
+    geom = read_json(GEOM_PATH)
+    return appearance.normalize(
+        {k: geom.get(k, appearance.DEFAULTS[k]) for k in appearance.FIELDS})
+
+
+# ---------------------------------------------------------------- 模型
+
+def configure_model():
+    raw = read_json(CONFIG_PATH)
+    print("\n[1/3] 模型\n")
+    base = raw.get("api_base") or "https://api.deepseek.com"
+    for _ in range(3):
+        base = ask("API 地址（OpenAI 兼容）", base)
+        if base.startswith(("http://", "https://")):
+            break
+        print("地址要以 http:// 或 https:// 开头。")
+    else:
+        base = "https://api.deepseek.com"
+        print(f"使用默认地址：{base}")
+    configured = raw.get("api_key") or os.environ.get("DEEPSEEK_API_KEY", "")
+    key = ask_secret("API key", configured)
+    model = ask("模型名", raw.get("model") or "deepseek-flash")
+    workspace = ask("工作区",
+                    raw.get("workspace") or "~/archlot-workspace")
+
+    raw = setup_lib.update_config(raw, {
+        "api_base": base,
+        "api_key": key,
+        "model": model,
+        "workspace": workspace,
+    })
+    atomic_write_json(CONFIG_PATH, raw)
+    try:
+        os.chmod(CONFIG_PATH, 0o600)
+    except OSError:
+        pass
+    print(f"已写入 {CONFIG_PATH}（权限 600）。")
+
+
+# ---------------------------------------------------------------- 外观
+
+def configure_appearance():
+    print("\n[2/3] 默认外观\n")
+    color = use_color()
+    state = current_state()
+    store = appearance.ensure_store(APPEARANCE_PATH, state)
+    print(f"当前：{swatch(state['background'], color)} 背景 "
+          f"{state['background']}  {swatch(state['accent'], color)} 主色 "
+          f"{state['accent']}  透明度 {state['opacity']}  "
+          f"圆角 {state['radius']}px  字号 {state['font_scale']}x")
+    names = sorted(appearance.PRESETS)
+    print("  0) 保持当前")
+    for index, name in enumerate(names, 1):
+        preset = appearance.PRESETS[name]
+        print(f"  {index}) {name:<9} "
+              f"{swatch(preset['background'], color)} 背景 "
+              f"{preset['background']}  "
+              f"{swatch(preset['accent'], color)} 主色 {preset['accent']}  "
+              f"透明度 {preset['opacity']}"
+              f"{'  模糊' if preset['blur'] else ''}")
+
+    choice = ask("选择默认外观（序号或名字）", "0").strip()
+    chosen = None
+    if choice not in ("", "0"):
+        if choice.isdigit() and 1 <= int(choice) <= len(names):
+            chosen = names[int(choice) - 1]
+        elif choice in appearance.PRESETS:
+            chosen = choice
+        else:
+            print("没有这个选项，保持当前。")
+    state = appearance.normalize(
+        appearance.PRESETS[chosen] if chosen else state)
+
+    store["default"] = dict(state)
+    appearance.save_store(APPEARANCE_PATH, store)
+    geom = read_json(GEOM_PATH)
+    geom.update({k: state[k] for k in appearance.FIELDS})
+    atomic_write_json(GEOM_PATH, geom)
+    print("已保存为默认外观。之后在 Archlot 里说“恢复默认外观”，"
+          "或调用 appearance(action=\"restore\") 就能回到这里。")
+    print("想细调就直接说，例如：")
+    print("  “透明度调到 0.72”      “主色换成 #67e8f9”")
+    print("  “圆角 20，字号 1.1 倍”  “把外观存成 work”")
+
+
+# ---------------------------------------------------------------- 快捷键
+
+def niri_dir() -> Path:
+    base = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
+    return Path(base) / "niri"
+
+
+def configure_hotkey(write_niri=False):
+    print("\n[3/3] 快捷键\n")
+    launcher = (shutil.which("archlot")
+                or str(ROOT / "bin" / "archlot"))
+    keys = ask("Copilot 键绑定（niri 按键组合）",
+               "Mod+Shift+XF86TouchpadOff")
+    try:
+        snippet = setup_lib.hotkey_block(keys, launcher)
+    except ValueError as exc:
+        print(f"绑定无效：{exc}")
+        return
+
+    folder = niri_dir()
+    config = folder / "config.kdl"
+    if not config.exists():
+        print("没有找到 niri 配置。把下面这段加到你的快捷键配置里：\n")
+        print(snippet)
+        return
+
+    texts = []
+    for path in sorted(folder.glob("*.kdl")):
+        try:
+            texts.append(path.read_text(encoding="utf-8"))
+        except OSError:
+            pass
+    config_text = config.read_text(encoding="utf-8")
+    has_managed = setup_lib.MARK_BEGIN in config_text
+    if setup_lib.mentions_app_id(texts, APP_ID) and not has_managed:
+        print(f"{folder} 里已经有 Archlot 的窗口规则或绑定，"
+              "为避免重复，向导不自动写入。需要的话手动加：\n")
+        print(snippet)
+        return
+
+    state = current_state()
+    block = setup_lib.managed_block(
+        APP_ID, appearance.niri_rule(state), keys, launcher)
+    print(f"将写入 {config}：\n")
+    print(block)
+    if not (write_niri or confirm("写入 niri 配置？", default=False)):
+        print("已跳过。上面的片段可以手动粘贴。")
+        return
+
+    backup = config.with_name(
+        config.name + ".bak." + time.strftime("%Y%m%d-%H%M%S"))
+    shutil.copy2(config, backup)
+    setup_lib.atomic_write_text(
+        str(config), setup_lib.upsert_block(config_text, block), mode=0o644)
+    print(f"已写入（备份：{backup.name}）。niri 会自动重载配置。")
+
+
+# ---------------------------------------------------------------- 入口
+
+def main():
+    parser = argparse.ArgumentParser(description="Archlot 配置向导")
+    parser.add_argument("--only", choices=["all", "tutorial", "model",
+                                           "appearance", "hotkey"],
+                        default="all",
+                        help="只配置其中一项；tutorial 只显示快速上手")
+    parser.add_argument("--no-tutorial", action="store_true",
+                        help="跳过开头的快速上手")
+    parser.add_argument("--write-niri", action="store_true",
+                        help="不询问，直接把快捷键写入 niri 配置")
+    parser.add_argument("--version", action="version",
+                        version=f"archlot-setup {ARCHLOT_VERSION}")
+    args = parser.parse_args()
+
+    print(f"Archlot {ARCHLOT_VERSION} 配置向导")
+    print("可反复运行；回车保留括号里的默认值。")
+    if args.only == "tutorial":
+        show_tutorial()
+        return
+    if args.only == "all" and not args.no_tutorial:
+        show_tutorial()
+    if args.only in ("all", "model"):
+        configure_model()
+    if args.only in ("all", "appearance"):
+        configure_appearance()
+    if args.only in ("all", "hotkey"):
+        configure_hotkey(args.write_niri)
+    print("\n完成。如果 Archlot 正在运行，请退出后重新启动使配置生效。")
+
+
+if __name__ == "__main__":
+    main()

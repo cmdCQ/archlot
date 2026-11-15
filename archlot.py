@@ -14,7 +14,8 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import Gio, Gtk  # noqa: E402
 
 from agent import Agent  # noqa: E402
-from core.config import APP_ID, LOG_PATH, Config  # noqa: E402
+from core.config import (APP_ID, ARCHLOT_VERSION, LOG_PATH,  # noqa: E402
+                         Config)
 from core.contracts import ToolContext  # noqa: E402
 from core.memory import Memory  # noqa: E402
 from tools import Tools  # noqa: E402
@@ -82,6 +83,9 @@ class Archlot(Gtk.Application):
 
 
 def main():
+    if "--version" in sys.argv:
+        print(f"Archlot {ARCHLOT_VERSION}")
+        return 0
     setup_logging()
     app = Archlot()
     return app.run(sys.argv)
