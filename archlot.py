@@ -404,6 +404,7 @@ class Archlot(Gtk.Application):
 
     def _load_geom(self):
         sw, sh = screen_size()
+        self._screen = (int(sw), int(sh))
         h = min(PANEL_H_MAX, int(sh) - 2 * MARGIN)
         default = {"x": int(sw) - MARGIN - PANEL_W,
                    "y": (int(sh) - h) // 2,
@@ -448,14 +449,23 @@ class Archlot(Gtk.Application):
         if self.win is None or not self.win.get_visible():
             return False
         self.root.set_size_request(self.geom["w"], self.geom["h"])
-        GLib.timeout_add(20, lambda: self._move_to(self.geom["x"], self.geom["y"]))
+        threading.Thread(target=self._place_worker, daemon=True).start()
         return False
+
+    def _place_worker(self):
+        """刚 present 的窗口不一定马上能被 niri 列出，重试几次再定位。"""
+        for _ in range(12):
+            if self._my_window():
+                self._move_to(self.geom["x"], self.geom["y"])
+                return
+            time.sleep(0.03)
 
     # ------------------------------------------------------------ 显示/隐藏
 
     def show(self):
         _log("show")
         self.ensure_ui()
+        self._hiding = False
         self._remember_external_focus()
         self.header.set_visible(True)
         self.scroll.set_visible(True)
@@ -479,22 +489,32 @@ class Archlot(Gtk.Application):
             pass
 
     def hide(self):
-        """先向右滑出屏幕，再 unmap，避免在桌面上留一个小方块。"""
+        """向右滑出 + 同时淡出，动画走完再 unmap，避免半路卡住。"""
         _log("hide")
         if self.win is None or not self.win.get_visible():
             return
-        me = self._my_window()
-        if me:
-            pos = (me.get("layout") or {}).get("tile_pos_in_workspace_view") or [0, 0]
-            sw, _ = screen_size()
-            dx = round(sw - pos[0] + 40)
-            run(["niri", "msg", "action", "move-floating-window",
-                 "--id", str(me["id"]), f"--x={dx:+d}"], timeout=4)
-        GLib.timeout_add(150, self._unmap)
+        # 只做淡出：niri 的位移动画和 unmap 很难对齐，中途消失就会“卡一下”。
+        # 透明度由合成器逐帧处理，淡完再 unmap 是最稳的。
+        self._hiding = True
+        self._fade_step = 0
+        GLib.timeout_add(16, self._fade_out)
+
+    def _fade_out(self):
+        if self.win is None or not getattr(self, "_hiding", False):
+            return False
+        self._fade_step += 1
+        base = float(self.geom.get("opacity", 1.0))
+        self.win.set_opacity(base * max(0.0, 1.0 - self._fade_step / 9.0))
+        if self._fade_step >= 9:
+            self._unmap()
+            return False
+        return True
 
     def _unmap(self):
+        self._hiding = False
         if self.win is not None:
             self.win.set_visible(False)
+            self.win.set_opacity(float(self.geom.get("opacity", 1.0)))
         if self._last_external:
             GLib.timeout_add(60, self._refocus_external)
         return False
@@ -715,11 +735,13 @@ class Archlot(Gtk.Application):
         GLib.idle_add(self.hide)
 
     def panel_info(self):
+        sw0, sh0 = screen_size()
+        self._screen = (int(sw0), int(sh0))
         me = self._my_window()
         layout = (me or {}).get("layout") or {}
         pos = layout.get("tile_pos_in_workspace_view") or [self.geom["x"], self.geom["y"]]
         size = layout.get("window_size") or [self.geom["w"], self.geom["h"]]
-        sw, sh = screen_size()
+        sw, sh = self._screen
         return {
             "x": int(pos[0]), "y": int(pos[1]),
             "width": int(size[0]), "height": int(size[1]),
