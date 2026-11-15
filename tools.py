@@ -305,6 +305,35 @@ class Tools:
             path = os.path.join(self.workspace, path)
         return os.path.abspath(path)
 
+    def _confirm_mode(self):
+        try:
+            return str(self.ui.cfg.get("confirm_mode", "auto"))
+        except Exception:  # noqa: BLE001
+            return "auto"
+
+    def _is_dangerous(self, cmd):
+        if DANGER_AUTO_RE.search(cmd):
+            return True
+        # rm -rf 只拦工作区和 /tmp 之外的目标
+        for m in re.finditer(r"\brm\s+-[a-zA-Z]*[rf][a-zA-Z]*\s+(.+)", cmd):
+            for raw in re.findall(r"[^\s;|&]+", m.group(1)):
+                if raw.startswith("-"):
+                    continue
+                if not (raw.startswith("/") or raw.startswith("~")):
+                    continue
+                path = os.path.abspath(os.path.expanduser(raw))
+                if path == self.workspace or path.startswith(self.workspace + os.sep):
+                    continue
+                if path.startswith(("/tmp", "/dev/null", "/var/tmp")):
+                    continue
+                # 家目录里的具体子目录可以删；只有系统目录、整个 home、根目录才拦
+                if path in CRITICAL_DIRS:
+                    return True
+                if path.startswith(SYSTEM_PREFIX):
+                    return True
+                continue
+        return False
+
     def _outside_write(self, cmd):
         """命令里出现工作区外的绝对路径、且命令看起来会改文件时，返回那个路径。"""
         if not MUTATE_RE.search(cmd):
@@ -341,18 +370,24 @@ class Tools:
         cmd = str(a.get("command", "")).strip()
         if not cmd:
             return {"text": "命令为空"}
-        if DANGER_RE.search(cmd) and not self.ui.confirm("要执行这条命令吗？", cmd):
+        mode = self._confirm_mode()
+        danger = self._is_dangerous(cmd)
+        if mode == "strict" and DANGER_RE.search(cmd):
+            danger = True
+        if danger and not self.ui.confirm("要执行这条命令吗？", cmd):
             return {"text": "用户拒绝了这条命令。"}
         outside = self._outside_write(cmd)
-        if outside and not self.ui.confirm(
-                f"这条命令会改动工作区外的 {outside}，确定吗？", cmd):
-            return {"text": "用户拒绝了工作区外的改动。"}
+        if outside:
+            if mode == "strict" and not self.ui.confirm(
+                    f"这条命令会改动工作区外的 {outside}，确定吗？", cmd):
+                return {"text": "用户拒绝了工作区外的改动。"}
         rc, out, err = run(["bash", "-lc", cmd], cwd=self.workspace,
                            timeout=int(a.get("timeout", 60)))
         body = out.strip()
         if err.strip():
             body += ("\n[stderr]\n" + err.strip())
-        return {"text": f"exit={rc}\n{clip(body)}"}
+        note = f"\n[自动放行] 改动了工作区外：{outside}" if outside else ""
+        return {"text": f"exit={rc}\n{clip(body)}{note}"}
 
     def _t_read_file(self, a):
         path = self._resolve(a.get("path", ""))
@@ -364,15 +399,17 @@ class Tools:
 
     def _t_write_file(self, a):
         path = self._resolve(a.get("path", ""))
-        if not (path == self.workspace or
-                path.startswith(self.workspace + os.sep)):
+        outside = not (path == self.workspace or
+                       path.startswith(self.workspace + os.sep))
+        if outside and self._confirm_mode() == "strict":
             if not self.ui.confirm("要写工作区外的文件吗？", path):
                 return {"text": "用户拒绝了这次写入。"}
         content = str(a.get("content", ""))
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w") as f:
             f.write(content)
-        return {"text": f"已写入 {path}（{len(content)} 字符）"}
+        note = "（工作区外）" if outside else ""
+        return {"text": f"已写入 {path}{note}（{len(content)} 字符）"}
 
     def _t_list_dir(self, a):
         path = self._resolve(a.get("path", self.workspace))
@@ -619,12 +656,30 @@ MUTATE_RE = re.compile(
     re.IGNORECASE,
 )
 
+# 严格模式：这些一律确认
 DANGER_RE = re.compile(
-    r"(rm\s+-[a-zA-Z]*[rf]|sudo\b|mkfs|dd\s+if=|dd\s+of=|pacman\s+-R|yay\s+-R|"
-    r"paru\s+-R|systemctl\s+(stop|disable|mask)|shutdown|reboot|poweroff|"
-    r"killall|pkill|chmod\s+777|>\s*/etc/|truncate|fdisk|parted)",
+    r"(rm\s+-[a-zA-Z]*[rf]|sudo\b|\bsu\b|mkfs|dd\s+if=|dd\s+of=|pacman\s+-R|"
+    r"yay\s+-R|paru\s+-R|systemctl\s+(stop|disable|mask)|shutdown|reboot|"
+    r"poweroff|halt|killall|pkill|chmod\s+777|>\s*/etc/|truncate|fdisk|parted|"
+    r"wipefs|mkswap|mv\s+[^\s]+\s+/dev/null|:\(\)\s*\{)",
     re.IGNORECASE,
 )
+
+# auto 模式：只拦真正不可逆/影响系统的
+DANGER_AUTO_RE = re.compile(
+    r"(sudo\b|\bsu\b|\bdoas\b|mkfs|wipefs|mkswap|fdisk|parted|sfdisk|"
+    r"dd\s+of=|shutdown|reboot|poweroff|halt|init\s+0|"
+    r"pacman\s+-(R|Rn|Rns|Rc|Rdd)|yay\s+-R|paru\s+-R|"
+    r"systemctl\s+(poweroff|reboot|halt|kexec)|"
+    r"chmod\s+-R\s+777\s+/|chown\s+-R\s+[^\s]+\s+/(etc|usr|boot|var|home)\b|"
+    r">\s*/dev/sd|>\s*/etc/|:\(\)\s*\{)",
+    re.IGNORECASE,
+)
+# 真正危险的目标：删这些才需要确认
+CRITICAL_DIRS = ("/", "/home", "/etc", "/usr", "/boot", "/var", "/root", "/opt",
+                 "/mnt", "/srv", "/lib", "/bin", "/sbin")
+SYSTEM_PREFIX = ("/etc", "/usr", "/boot", "/var", "/root", "/opt", "/mnt",
+                 "/srv", "/lib", "/bin", "/sbin", "/sys", "/proc", "/dev")
 
 
 # ---------------------------------------------------------------- 工具 schema

@@ -56,7 +56,7 @@ SYSTEM_PROMPT = """你是 Archlot，跑在用户 cqsomt 的 Arch Linux + niri �
 - type_text / press_key 默认 auto 就够用；但如果目标是不认键盘协议的界面（网页版远程控制台 noVNC / KVM / IPMI、部分游戏），输入会丢字或变成数字，按键也没反应，这时改用 method="keys" 走真实键码重做。
 - 判断依据：输入后截图发现字符缺失、变成数字或根本没出现，就是键盘协议不兼容，别反复重试 auto。
 - 你可以用 panel 工具调整自己的窗口：位置、尺寸、贴边停靠、透明度、收起或唤出。用户让你改自己的样子或位置时直接调，不用问。
-- 危险命令（删除、sudo、关机等）会由程序弹窗让用户确认，你不用反复口头询问。
+- 默认是 auto 审查模式：普通命令和工作区外的只读/常规写入直接执行，不再弹框；只有 sudo、mkfs、dd、关机重启、卸载软件包、`rm -rf` 打到工作区外等真正危险的操作才会要求用户确认。
 - 绝不编造工具结果。做不到就直说做不到。
 """
 
@@ -204,6 +204,10 @@ class Archlot(Gtk.Application):
         self.confirm_label = Gtk.Label()
         self.confirm_label.set_xalign(0)
         self.confirm_label.set_wrap(True)
+        self.confirm_label.set_wrap_mode(Pango.WrapMode.WORD_CHAR)
+        self.confirm_label.set_lines(4)
+        self.confirm_label.set_ellipsize(Pango.EllipsizeMode.END)
+        self.confirm_label.set_max_width_chars(24)
         self.confirm_label.set_hexpand(True)
         self.confirm_label.add_css_class("confirm-text")
         cbox.append(self.confirm_label)
@@ -244,6 +248,7 @@ class Archlot(Gtk.Application):
         root.append(self.inputbox)
 
         keys = Gtk.EventControllerKey()
+        keys.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
         keys.connect("key-pressed", self.on_key)
         win.add_controller(keys)
 
@@ -571,6 +576,11 @@ class Archlot(Gtk.Application):
             self.show()
 
     def on_key(self, controller, keyval, keycode, state):
+        if keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
+            if (self._confirm_event is not None
+                    and not self._confirm_event.is_set()):
+                self._answer_confirm(True)
+                return True
         if keyval == Gdk.KEY_Escape:
             if self._confirm_event is not None and not self._confirm_event.is_set():
                 self._answer_confirm(False)
@@ -752,7 +762,7 @@ class Archlot(Gtk.Application):
         self._awaiting_confirm = True
         self.status.set_text("等待确认")
         self.status.set_visible(True)
-        self.confirm_label.set_text(f"{title}\n{detail[:300]}")
+        self.confirm_label.set_text(f"{title}\n{detail[:220]}")
         self.confirm_revealer.set_reveal_child(True)
         return False
 
