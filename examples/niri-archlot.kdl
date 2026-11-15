@@ -1,0 +1,38 @@
+// Archlot 的 niri 集成示例
+//
+// 用法：
+//   1. 复制需要的片段到 ~/.config/niri/config.kdl
+//   2. 把 /home/你的用户名 换成真实路径（niri 的 spawn 不展开 ~）
+//   3. 保存后 niri 自动重载
+//
+// 详细说明见 docs/niri.md。
+
+// ── 窗口规则 ─────────────────────────────────────────────
+// 浮窗、右上角、圆角裁剪、磨砂背景。
+// 注意：不要在规则里写 opacity，会和 Archlot 的 CSS alpha 叠乘。
+window-rule {
+    match app-id=r#"^com\.cqsomt\.archlot$"#
+    open-floating true
+    default-floating-position x=18 y=0 relative-to="top-right"
+    geometry-corner-radius 18
+    clip-to-geometry true
+
+    // niri 26.04+ 才支持 background-effect；老版本整段删掉。
+    background-effect {
+        blur true
+        xray true
+        noise 0.020
+    }
+}
+
+// ── Copilot 键 ───────────────────────────────────────────
+// 笔记本的 Copilot 键在 Wayland 里是 XF86TouchpadOff；
+// niri 按基础层符号匹配，这台机器上实测要写成 Mod+Shift+XF86TouchpadOff。
+// ~/.local/bin/ai 内容：
+//   #!/usr/bin/env bash
+//   exec "$HOME/projects/archlot/bin/archlot" --toggle
+binds {
+    Mod+Shift+XF86TouchpadOff repeat=false hotkey-overlay-title="AI 助手" {
+        spawn "/home/你的用户名/.local/bin/ai";
+    }
+}

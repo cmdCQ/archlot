@@ -131,6 +131,88 @@ binds {
 > `org.a11y.Status.IsEnabled=false`, Archlot falls back to screenshots and tells you
 > why. For Firefox, enabling `accessibility.force_enabled` gives it a full tree.
 
+## Model configuration
+
+Archlot talks to any OpenAI-compatible endpoint; DeepSeek is the default. Settings
+live in `~/.config/archlot/config.json`:
+
+```bash
+cp config.example.json ~/.config/archlot/config.json
+chmod 600 ~/.config/archlot/config.json
+```
+
+```json
+{
+  "api_base": "https://api.deepseek.com",
+  "api_key": "sk-your-key",
+  "model": "deepseek-flash",
+  "max_tokens": 16384,
+  "workspace": "~/archlot-workspace"
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `api_base` | OpenAI-compatible endpoint. Switch providers (OpenAI, OpenRouter, local vLLM…) by changing this and `model` |
+| `api_key` | Model key; if empty, `DEEPSEEK_API_KEY` is used |
+| `model` | Model name |
+| `max_tokens` | Per-reply limit, default 16384 |
+| `workspace` | Shell cwd and default directory for file tools |
+| `sound_effects` | Play notification sounds, default `true` |
+| `confirm_mode` | `auto` confirms dangerous actions only; `strict` also confirms writes outside the workspace |
+| `max_steps` / `max_turn_seconds` | Per-turn budget, default 600 steps / 600 s |
+| `adaptive_effort` | Adaptive reasoning effort, off by default; the current level is shown when enabled |
+
+Restart Archlot after editing. The key stays on your machine; only model requests leave it.
+
+## Basic usage
+
+| Action | What it does |
+|---|---|
+| `Enter` | Send the current input |
+| `Ctrl+L` | **Clear the context**: resets the conversation and messages; long-term memory is kept |
+| `Escape` | Cancel a running task, reject a confirmation dialog, or hide the panel |
+| `bin/archlot --toggle` | Show / hide |
+| `bin/archlot --daemon` | Stay resident without showing |
+
+Drag the header to move the panel. To let Archlot change itself, just ask —
+"move left a bit", "set opacity to 0.7", "try a warm theme" — and it calls the
+`panel` / `appearance` tools.
+
+## Summon it with the Copilot key
+
+On many laptops the Copilot key reports as `XF86TouchpadOff` under Wayland.
+niri matches the base-layer symbol, so bind `Mod+Shift+XF86TouchpadOff` to a
+small wrapper:
+
+```bash
+# ~/.local/bin/ai
+#!/usr/bin/env bash
+exec "$HOME/projects/archlot/bin/archlot" --toggle
+```
+
+```kdl
+// ~/.config/niri/config.kdl
+binds {
+    Mod+Shift+XF86TouchpadOff repeat=false hotkey-overlay-title="AI assistant" {
+        spawn "/home/yourname/.local/bin/ai";
+    }
+}
+```
+
+`--toggle` is single-instance: it wakes the resident panel, and pressing it again
+hides it. To turn Archlot into a frosted floating panel in the top-right corner
+(rounded clipping + background blur), see [niri integration](docs/niri.md).
+
+## niri integration
+
+Archlot controls its own opacity through CSS; niri only handles placement, corner
+clipping and blur. `appearance(action="niri")` prints a window-rule for the current
+look — paste it into `~/.config/niri/config.kdl`. Blur requires niri 26.04+.
+**Do not add `opacity` to the niri rule**: it multiplies with the CSS alpha.
+Full guide: [`docs/niri.md`](docs/niri.md); copy-paste snippet:
+[`examples/niri-archlot.kdl`](examples/niri-archlot.kdl).
+
 ## Try asking
 
 ```text
@@ -155,6 +237,7 @@ Write a script that renames these photos by date, then run it.
 | `type_text` | Type text, including real-keycode mode for stubborn UIs |
 | `press_key` | Send key chords / named keys |
 | `panel` | Move, resize, dock, fade or hide Archlot's own panel |
+| `appearance` | Restyle Archlot: colors, opacity, radius, font scale, blur; presets; niri rule |
 | `run_shell` | Run a shell command in the workspace |
 | `read_file` | Read a text file |
 | `write_file` | Write a text file |

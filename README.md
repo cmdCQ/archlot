@@ -129,6 +129,84 @@ binds {
 > `org.a11y.Status.IsEnabled=false`，Archlot 会明确告诉你，并退回截图模式。
 > Firefox 需要打开 `accessibility.force_enabled` 才会暴露完整的可访问性树。
 
+## 配置模型
+
+Archlot 走 OpenAI 兼容接口，默认接 DeepSeek。配置在
+`~/.config/archlot/config.json`：
+
+```bash
+cp config.example.json ~/.config/archlot/config.json
+chmod 600 ~/.config/archlot/config.json
+```
+
+```json
+{
+  "api_base": "https://api.deepseek.com",
+  "api_key": "sk-你的 key",
+  "model": "deepseek-flash",
+  "max_tokens": 16384,
+  "workspace": "~/archlot-workspace"
+}
+```
+
+| 字段 | 说明 |
+|---|---|
+| `api_base` | OpenAI 兼容端点。换厂商（OpenAI、OpenRouter、本地 vLLM…）只改这里和 `model` |
+| `api_key` | 模型 key；留空则读环境变量 `DEEPSEEK_API_KEY` |
+| `model` | 模型名 |
+| `max_tokens` | 单次回复上限，默认 16384 |
+| `workspace` | shell 的 cwd，也是文件工具的默认目录 |
+| `sound_effects` | 是否播放提示音，默认 `true` |
+| `confirm_mode` | `auto` 只对危险动作弹确认；`strict` 工作区外写入也确认 |
+| `max_steps` / `max_turn_seconds` | 每轮预算，默认 600 步 / 600 秒 |
+| `adaptive_effort` | 自适应思考强度，默认关闭；开启后状态栏显示当前档位 |
+
+改完重启 Archlot 生效。key 只留在本机，只有模型请求会离开。
+
+## 基本用法
+
+| 操作 | 行为 |
+|---|---|
+| `Enter` | 发送当前输入 |
+| `Ctrl+L` | **清空上下文**：重置本轮会话和消息列表，长期记忆保留 |
+| `Escape` | 有任务在跑就取消；有确认框就拒绝；否则收起面板 |
+| `bin/archlot --toggle` | 唤出 / 收起 |
+| `bin/archlot --daemon` | 只驻留，不显示 |
+
+面板可拖标题栏移动。想让它自己改位置、尺寸、透明度，直接说
+“往左一点”“透明到 0.7”“换个暖色”，它会调用 `panel` / `appearance` 工具。
+
+## 用 Copilot 键召唤
+
+很多笔记本上的 Copilot 键在 Wayland 里报告为 `XF86TouchpadOff`。niri 按基础层
+符号匹配，这台机器上实测绑定写成 `Mod+Shift+XF86TouchpadOff`，指向一个包装脚本：
+
+```bash
+# ~/.local/bin/ai
+#!/usr/bin/env bash
+exec "$HOME/projects/archlot/bin/archlot" --toggle
+```
+
+```kdl
+// ~/.config/niri/config.kdl
+binds {
+    Mod+Shift+XF86TouchpadOff repeat=false hotkey-overlay-title="AI 助手" {
+        spawn "/home/你的用户名/.local/bin/ai";
+    }
+}
+```
+
+`--toggle` 是单实例：已经在后台驻留就唤出，再按一次收起。要把 Archlot 变成
+右上角的磨砂浮窗（圆角裁剪 + 背景模糊），见 [niri 集成](docs/niri.md)。
+
+## niri 集成
+
+Archlot 的透明度由自己的 CSS 控制，niri 只负责窗口位置、圆角裁剪和模糊。
+`appearance(action="niri")` 会按当前外观生成 window-rule，直接贴进
+`~/.config/niri/config.kdl`。模糊需要 niri 26.04+；**不要在 niri 规则里再写
+`opacity`**，两边会叠乘。完整配置和预设说明见 [`docs/niri.md`](docs/niri.md)，
+可复制的片段见 [`examples/niri-archlot.kdl`](examples/niri-archlot.kdl)。
+
 ## 可以这样用
 
 ```text
@@ -153,6 +231,7 @@ binds {
 | `type_text` | 输入文字，支持真实键码模式 |
 | `press_key` | 发送组合键 / 命名键 |
 | `panel` | 移动、缩放、贴边、淡化或隐藏 Archlot 自己的面板 |
+| `appearance` | 改 Archlot 自己的颜色、透明度、圆角、字号、模糊，套预设，生成 niri 规则 |
 | `run_shell` | 在工作区执行 shell 命令 |
 | `read_file` | 读取文本文件 |
 | `write_file` | 写入文本文件 |
