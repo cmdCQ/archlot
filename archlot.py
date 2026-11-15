@@ -4,6 +4,7 @@
 import base64
 import json
 import os
+import re
 import sys
 import threading
 import time
@@ -49,6 +50,9 @@ SYSTEM_PROMPT = """你是 Archlot，跑在用户 cqsomt 的 Arch Linux + niri �
 表格尽量少用；代码块标明语言。
 
 你有真正能干活的工具：执行 shell、读写文件、看屏幕、动鼠标、敲键盘、切窗口。
+
+当前时间：{now}
+{tone}
 
 下面是关于用户和以往工作的长期记忆，可能为空：
 {memory}
@@ -114,6 +118,7 @@ def load_config():
         "api_base": "https://api.deepseek.com",
         "model": "deepseek-flash",
         "max_tokens": 16384,
+        "sound_effects": True,
         "workspace": os.path.expanduser("~/archlot-workspace"),
     }
     try:
@@ -172,6 +177,7 @@ class Archlot(Gtk.Application):
     def ensure_ui(self):
         if self.win is not None:
             return
+        self._ensure_sounds()
         if not getattr(self, "geom", None):
             self.geom = self._load_geom()
         win = Gtk.ApplicationWindow(application=self)
@@ -221,6 +227,14 @@ class Archlot(Gtk.Application):
         self.header.append(self.spinner)
         root.append(self.header)
 
+        # 推理旁白：干活时滚动显示它在做什么
+        self.narration = Gtk.Label(label="")
+        self.narration.add_css_class("narration")
+        self.narration.set_xalign(0)
+        self.narration.set_ellipsize(Pango.EllipsizeMode.END)
+        self.narration.set_visible(False)
+        root.append(self.narration)
+
         # 对话区
         self.scroll = Gtk.ScrolledWindow()
         self.scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -250,11 +264,16 @@ class Archlot(Gtk.Application):
         self._stream_pending = ""
         self._stream_timer = 0
         self._tool_label = None
+        self._reason_buf = ""
+        self._reason_timer = 0
+        self._queue = []
+        self._pending_nudge = None
 
         # 空状态
         self.empty_state = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         self.empty_state.add_css_class("empty-state")
         empty_title = Gtk.Label(label="需要我做什么？")
+        self.empty_title = empty_title
         empty_title.add_css_class("empty-title")
         empty_title.set_xalign(0)
         empty_hint = Gtk.Label(label="执行命令 · 读写文件 · 看屏幕 · 搜网页")
@@ -498,6 +517,28 @@ class Archlot(Gtk.Application):
         self._append_animated(bubble)
         GLib.idle_add(self._scroll_bottom)
 
+    def append_reason(self, text, gen=None):
+        if gen is not None and gen != self._gen:
+            return False
+        self._reason_buf = (self._reason_buf + text)[-800:]
+        if not self._reason_timer:
+            self._reason_timer = GLib.timeout_add(260, self._flush_reason)
+        return False
+
+    def _flush_reason(self):
+        self._reason_timer = 0
+        if not self.busy:
+            return False
+        raw = self._reason_buf.replace("\n", " ")
+        for sep in "。！？.!?；;":
+            raw = raw.replace(sep, sep + "\n")
+        lines = [x.strip() for x in raw.split("\n") if x.strip()]
+        if lines:
+            snippet = lines[-1][-64:]
+            self.narration.set_text(snippet)
+            self.narration.set_visible(True)
+        return False
+
     def append_assistant(self, text, gen=None):
         if gen is not None and gen != self._gen:
             return False
@@ -636,8 +677,12 @@ class Archlot(Gtk.Application):
         detail.set_ellipsize(Pango.EllipsizeMode.END)
         detail.set_max_width_chars(40)
         card.append(detail)
+        bar = Gtk.Box()
+        bar.add_css_class("tool-bar")
+        card.append(bar)
         self._append_animated(card, slide=False, duration=150)
         self._tool_card = {"dot": dot, "status": status, "detail": detail,
+                           "bar": bar, "card": card,
                            "base": self._tool_preview(name, args)}
         self._tool_label = detail
         self._scroll_bottom()
@@ -655,6 +700,10 @@ class Archlot(Gtk.Application):
         card["status"].set_text("✓" if ok else "✗")
         card["status"].add_css_class("tool-ok" if ok else "tool-err")
         card["dot"].add_css_class("tool-dot-done")
+        if "bar" in card:
+            card["bar"].set_visible(False)
+        if "card" in card:
+            card["card"].add_css_class("tool-done")
         if len(line) > 48:
             line = line[:48] + "…"
         if line:
@@ -666,6 +715,8 @@ class Archlot(Gtk.Application):
             return False
         self._end_stream()
         self._tool_label = None
+        self._set_state("error")
+        GLib.timeout_add(1000, lambda: (self._set_state("idle"), False)[1])
         label = self._wrap_label(f"⚠ {text}", "error-text")
         self._append_animated(label, slide=False)
         GLib.idle_add(self._scroll_bottom)
@@ -907,13 +958,42 @@ class Archlot(Gtk.Application):
     # ------------------------------------------------------------ 对话
 
     def on_send(self, entry):
-        if self.busy:
-            return
         text = entry.get_text().strip()
         if not text:
             return
         entry.set_text("")
+        if self.busy:
+            self._queue.append(text)
+            self._append_queued(text)
+            return
+        self._start_turn(text)
+
+    def _append_queued(self, text):
+        bubble = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        bubble.add_css_class("user-bubble")
+        bubble.add_css_class("queued")
+        bubble.set_halign(Gtk.Align.END)
+        label = self._wrap_label(text, "user-text")
+        label.set_max_width_chars(30)
+        bubble.append(label)
+        self._append_animated(bubble)
+        self.append_notice("收到，等这步做完。")
+        GLib.idle_add(self._scroll_bottom)
+
+    def _send_next_queued(self):
+        if self.busy or not self._queue:
+            return False
+        text = self._queue.pop(0)
+        self._start_turn(text)
+        return False
+
+    def _start_turn(self, text):
+        self._habit_check(text)
         self.busy = True
+        self._set_state("busy")
+        self._play_sound("send")
+        self._reason_buf = ""
+        self.narration.set_visible(False)
         self._cancel.clear()
         self._status_start = time.time()
         self._status_timer = GLib.timeout_add(1000, self._tick_status)
@@ -943,11 +1023,14 @@ class Archlot(Gtk.Application):
                     break
                 payload = [{"role": "system",
                             "content": SYSTEM_PROMPT.format(
-                                workspace=self.workspace, memory=mem_ctx)}] + self.messages
+                                workspace=self.workspace, memory=mem_ctx,
+                                now=time.strftime("%Y-%m-%d %H:%M %A"),
+                                tone=self._tone_hint())}] + self.messages
                 _t0 = time.time()
                 msg, _finish = llm.stream_chat(
                     self.cfg, payload, TOOLS,
                     on_text=lambda t: GLib.idle_add(self.append_assistant, t, gen),
+                    on_reason=lambda t: GLib.idle_add(self.append_reason, t, gen),
                     cancel=self._cancel,
                 )
                 _log(f"llm {time.time() - _t0:.2f}s finish={_finish}")
@@ -1052,6 +1135,17 @@ class Archlot(Gtk.Application):
 
     def finish(self):
         self._streaming = False
+        self._set_state("idle")
+        self._play_sound("done")
+        if self._reason_timer:
+            GLib.source_remove(self._reason_timer)
+            self._reason_timer = 0
+        self.narration.set_visible(False)
+        if self._pending_nudge:
+            nudge, self._pending_nudge = self._pending_nudge, None
+            self.append_notice(nudge)
+        if self._queue:
+            GLib.timeout_add(220, self._send_next_queued)
         self._flush_pending()
         self._stop_caret()
         self._stick_bottom = True
@@ -1258,8 +1352,110 @@ class Archlot(Gtk.Application):
         except Exception as exc:  # noqa: BLE001
             _log(f"会话总结失败：{exc}")
 
+    HABITS_PATH = os.path.expanduser("~/.config/archlot/memory/habits.json")
+    SOUND_DIR = "/tmp/archlot-sounds"
+
+    def _habit_key(self, text):
+        return re.sub(r"[\s，。！？、；：,.!?;:]+", "", text.lower())[:24]
+
+    def _habit_check(self, text):
+        key = self._habit_key(text)
+        if not key:
+            return
+        data = {}
+        try:
+            if os.path.exists(self.HABITS_PATH):
+                with open(self.HABITS_PATH) as f:
+                    data = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            data = {}
+        e = data.setdefault(key, {"count": 0, "asked": False, "last_ask": ""})
+        e["count"] = int(e.get("count", 0)) + 1
+        today = time.strftime("%Y-%m-%d")
+        if e["count"] >= 3 and not e.get("asked") and e.get("last_ask") != today:
+            e["asked"] = True
+            e["last_ask"] = today
+            self._pending_nudge = ("这个流程你做过几次了，要不要我记成固定做法？"
+                                   "说「记住这个流程」就行。")
+        try:
+            if len(data) > 80:
+                data = dict(sorted(data.items(),
+                                   key=lambda kv: -int(kv[1].get("count", 0)))[:50])
+            os.makedirs(os.path.dirname(self.HABITS_PATH), exist_ok=True)
+            with open(self.HABITS_PATH, "w") as f:
+                json.dump(data, f, ensure_ascii=False)
+        except OSError:
+            pass
+
+    @staticmethod
+    def _tone(path, freqs, dur, vol=0.10):
+        import math
+        import struct
+        import wave
+        rate = 44100
+        data = []
+        for f in freqs:
+            n = int(rate * dur)
+            for i in range(n):
+                env = min(1.0, i / (rate * 0.008), (n - i) / (rate * 0.03))
+                data.append(int(32767 * vol * env * math.sin(2 * math.pi * f * i / rate)))
+        with wave.open(path, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(rate)
+            w.writeframes(b"".join(
+                struct.pack("<h", max(-32767, min(32767, v))) for v in data))
+
+    def _ensure_sounds(self):
+        try:
+            os.makedirs(self.SOUND_DIR, exist_ok=True)
+            send = os.path.join(self.SOUND_DIR, "send.wav")
+            done = os.path.join(self.SOUND_DIR, "done.wav")
+            if not os.path.exists(send):
+                self._tone(send, [880], 0.045)
+            if not os.path.exists(done):
+                self._tone(done, [660, 990], 0.055)
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _play_sound(self, name):
+        if not self.cfg.get("sound_effects", True):
+            return
+        path = os.path.join(self.SOUND_DIR, name + ".wav")
+        if not os.path.exists(path):
+            return
+        for player in ("/usr/bin/pw-play", "/usr/bin/paplay"):
+            if os.path.exists(player):
+                threading.Thread(
+                    target=lambda p=player, f=path: run([p, f], timeout=3),
+                    daemon=True).start()
+                return
+
+    def _set_state(self, state):
+        for name in ("state-idle", "state-busy", "state-error"):
+            self.root.remove_css_class(name)
+        self.root.add_css_class("state-" + state)
+
+    def _tone_hint(self):
+        h = time.localtime().tm_hour
+        if h >= 23 or h < 6:
+            return "现在是深夜，回答尽量短、语气安静。"
+        return ""
+
+    def _greeting(self):
+        h = time.localtime().tm_hour
+        if 5 <= h < 11:
+            return "早上好"
+        if 11 <= h < 18:
+            return "下午好"
+        if 18 <= h < 23:
+            return "晚上好"
+        return "夜深了"
+
     def _apply_chrome(self):
         w, h = self.geom["w"], self.geom["h"]
+        if not self.messages and hasattr(self, "empty_title"):
+            self.empty_title.set_text(f"{self._greeting()}，需要我做什么？")
         self.header.set_visible(h >= 160)
         self._set_empty(not self.messages and h >= 240, animate=False)
         narrow = w < 200

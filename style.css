@@ -320,3 +320,63 @@ scrollbar slider:hover {
     45%  { opacity: 0.95; }
     100% { opacity: 0.05; }
 }
+
+/* ---------------- 状态呼吸 ---------------- */
+
+@keyframes breathe {
+    0%, 100% { border-color: rgba(255, 255, 255, 0.06); }
+    50%      { border-color: rgba(185, 167, 245, 0.20); }
+}
+
+.root.state-idle { animation: breathe 5.5s ease-in-out infinite; }
+.root.state-busy { animation: breathe 1.5s ease-in-out infinite; }
+
+@keyframes errflash {
+    0%   { border-color: rgba(240, 120, 120, 0.85); }
+    100% { border-color: rgba(255, 255, 255, 0.06); }
+}
+
+.root.state-error { animation: errflash 0.9s ease-out 1; }
+
+/* ---------------- 推理旁白 ---------------- */
+
+.narration {
+    color: rgba(172, 165, 190, 0.60);
+    font-family: "Noto Sans CJK SC", "Noto Sans";
+    font-size: 8.5pt;
+    margin: -2px 20px 6px 20px;
+}
+
+/* ---------------- 排队消息 ---------------- */
+
+.user-bubble.queued {
+    opacity: 0.55;
+}
+
+/* ---------------- 工具卡进行中 ---------------- */
+
+.tool-bar {
+    min-height: 2px;
+    border-radius: 2px;
+    margin-top: 7px;
+    background-image: linear-gradient(to right,
+        rgba(185, 167, 245, 0.0),
+        rgba(185, 167, 245, 0.55),
+        rgba(185, 167, 245, 0.0));
+    animation: barpulse 1.3s ease-in-out infinite;
+}
+
+@keyframes barpulse {
+    0%   { opacity: 0.12; }
+    50%  { opacity: 0.85; }
+    100% { opacity: 0.12; }
+}
+
+@keyframes cardpop {
+    0%   { background-color: rgba(185, 167, 245, 0.16); }
+    100% { background-color: rgba(255, 255, 255, 0.026); }
+}
+
+.tool-card.tool-done {
+    animation: cardpop 0.45s ease-out 1;
+}
