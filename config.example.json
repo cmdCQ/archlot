@@ -1,0 +1,12 @@
+{
+  "api_base": "https://api.deepseek.com",
+  "api_key": "",
+  "model": "deepseek-flash",
+  "workspace": "~/archlot-workspace",
+  "sound_effects": true,
+  "confirm_mode": "auto",
+  "max_steps": 600,
+  "max_turn_seconds": 600,
+  "max_tool_seconds": 120,
+  "adaptive_effort": false
+}
