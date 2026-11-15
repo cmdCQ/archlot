@@ -53,6 +53,7 @@ SYSTEM_PROMPT = """你是 Archlot，跑在用户 cqsomt 的 Arch Linux + niri �
 下面是关于用户和以往工作的长期记忆，可能为空：
 {memory}
 - 遇到值得长期记住的信息（稳定偏好、环境、长期项目、明确要求），用 memory(action="add") 记下来，不要记一次性细节。
+- 踩坑后换一种做法才成功时（点偏了、命令失败、工具不兼容），用 memory(action="add", tags="经验") 记一条可复用的教训。
 - 用户说“忘掉…”时，用 memory(action="forget")。
 
 工作区：{workspace}
@@ -72,11 +73,15 @@ SYSTEM_PROMPT = """你是 Archlot，跑在用户 cqsomt 的 Arch Linux + niri �
 """
 
 
-EXTRACT_PROMPT = """你是记忆整理器。从下面这轮对话里提取值得长期记住的事实，最多 3 条。
-只记：用户稳定的偏好、习惯、环境配置、长期项目、明确的要求或禁区。
-不要记：一次性任务细节、临时数字、工具输出、助手自己的客套话。
-每条一句话，脱离上下文也能看懂，用第三人称（“用户…”）。
-只输出 JSON 数组，例如 [{{"text": "用户偏好深色主题"}}]；没有就输出 []。
+EXTRACT_PROMPT = """你是记忆整理器。从下面这轮对话里提取值得长期记住的内容，最多 3 条。
+可以记的四类：
+- preference：用户稳定的偏好、禁区（写成“用户偏好…”）
+- environment：环境、工具、路径、配置
+- project：长期项目、明确要求
+- lesson：这次任务学到的经验教训（哪种做法失败、换成哪种才成功、某个工具或界面的坑）
+不要记：一次性任务细节、临时数字、工具原始输出、客套话。
+每条一句话，脱离上下文也能看懂。
+只输出 JSON 数组，例如 [{{"text": "点击输入框要点中心，点边缘会落空", "kind": "lesson"}}]；没有就输出 []。
 
 用户：{user}
 助手：{assistant}
@@ -910,6 +915,7 @@ class Archlot(Gtk.Application):
 
     def run_agent(self, text):
         gen = self._gen
+        _issues = None
         try:
             mem_ctx = self.memory.context_for(text) or "（暂无）"
         except Exception as exc:  # noqa: BLE001
@@ -949,6 +955,8 @@ class Archlot(Gtk.Application):
                             "模型这次没有返回内容，任务可能没完成。可以再试一次。", gen)
                     break
                 pending_images = []
+                if _issues is None:
+                    _issues = []
                 for tc in calls:
                     if self._cancel.is_set() or gen != self._gen:
                         break
@@ -962,6 +970,10 @@ class Archlot(Gtk.Application):
                     _t1 = time.time()
                     result = self.tools.execute(name, args)
                     _log(f"tool {name} {time.time() - _t1:.2f}s")
+                    body = str(result.get("text", ""))
+                    if any(k in body for k in ("失败", "错误", "超时", "被拒绝",
+                                               "Traceback", "not found", "command not found")):
+                        _issues.append(f"{name}: {body[:200]}")
                     if gen != self._gen:
                         return
                     self.messages.append({
@@ -992,6 +1004,10 @@ class Archlot(Gtk.Application):
             if last_reply:
                 threading.Thread(target=self._auto_remember,
                                  args=(text, last_reply), daemon=True).start()
+                if _issues:
+                    threading.Thread(target=self._reflect_on_issues,
+                                     args=(_issues, text, last_reply),
+                                     daemon=True).start()
             self.trim_history()
         except llm.LLMError as exc:
             GLib.idle_add(self.append_error, str(exc), gen)
@@ -1150,14 +1166,42 @@ class Archlot(Gtk.Application):
                 user=user_text[:1500], assistant=assistant_text[:1500])
             msg, _ = llm.stream_chat(
                 self.cfg, [{"role": "user", "content": prompt}])
+            kinds = {"preference": "偏好", "environment": "环境",
+                     "project": "项目", "lesson": "经验"}
             for item in self._parse_json_list(msg.get("content") or "")[:3]:
-                text = item.get("text") if isinstance(item, dict) else str(item)
+                if isinstance(item, dict):
+                    text = item.get("text", "")
+                    kind = kinds.get(str(item.get("kind", "")), "通用")
+                else:
+                    text, kind = str(item), "通用"
                 text = str(text or "").strip()
                 if len(text) >= 4:
-                    self.memory.add(text, source="auto")
-                    _log(f"memory add: {text}")
+                    self.memory.add(text, tags=kind, source="auto")
+                    _log(f"memory add [{kind}]: {text}")
         except Exception as exc:  # noqa: BLE001
             _log(f"自动记忆失败：{exc}")
+
+    def _reflect_on_issues(self, issues, user_text, reply):
+        """任务里出现过失败/拒绝/超时，总结一条可复用的经验。"""
+        if not issues:
+            return
+        prompt = (
+            "下面是任务中出现的失败或重试，以及最终结果。\n"
+            "请总结一条以后能避免同样问题的经验，写成一句通用的话，"
+            "不要提这次的具体文件或数字。\n"
+            "只输出这一句话；如果失败是偶然的、没有可复用经验，输出“无”。\n\n"
+            "失败：\n" + "\n".join(issues[:6]) +
+            "\n\n用户要求：" + user_text[:300] +
+            "\n最终回答：" + reply[:400])
+        try:
+            msg, _ = llm.stream_chat(self.cfg,
+                                     [{"role": "user", "content": prompt}])
+            lesson = (msg.get("content") or "").strip().strip('"')
+            if lesson and lesson != "无" and 4 <= len(lesson) <= 200:
+                self.memory.add(lesson, tags="经验", source="reflect")
+                _log(f"memory add [经验]: {lesson}")
+        except Exception as exc:  # noqa: BLE001
+            _log(f"经验反思失败：{exc}")
 
     def _summarize_session(self, messages):
         try:

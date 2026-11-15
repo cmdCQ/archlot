@@ -85,13 +85,22 @@ class Memory:
         if not text:
             return None
         now = _now()
+        key = _norm(text)
         with self._connect() as con:
-            row = con.execute(
-                "SELECT id FROM facts WHERE status='active' AND lower(text)=lower(?)",
-                (text,)).fetchone()
-            if row:
-                con.execute("UPDATE facts SET last_used=? WHERE id=?", (now, row[0]))
-                return row[0]
+            # 完全相同或互相包含的，视为同一条，只更新时间
+            for fid, old in con.execute(
+                    "SELECT id, text FROM facts WHERE status='active'").fetchall():
+                old_key = _norm(old)
+                if not old_key:
+                    continue
+                if key == old_key or key in old_key or old_key in key:
+                    keep = old if len(old_key) >= len(key) else text
+                    con.execute(
+                        "UPDATE facts SET text=?, last_used=? WHERE id=?",
+                        (keep, now, fid))
+                    con.execute(
+                        "UPDATE facts_fts SET text=? WHERE rowid=?", (keep, fid))
+                    return fid
             cur = con.execute(
                 "INSERT INTO facts(text, tags, created, last_used, source) "
                 "VALUES (?,?,?,?,?)", (text, tags, now, now, source))
@@ -109,6 +118,34 @@ class Memory:
                         "UPDATE facts SET status='superseded', superseded_by=? "
                         "WHERE id=?", (fid, old[0]))
         return fid
+
+    def dedupe(self):
+        """合并互相包含的事实，保留最长的，标签取并集。"""
+        removed = 0
+        with self._connect() as con:
+            rows = con.execute(
+                "SELECT id, text, tags FROM facts WHERE status='active' "
+                "ORDER BY length(text) DESC").fetchall()
+            kept = []
+            for fid, text, tags in rows:
+                k = _norm(text)
+                hit = None
+                for kfid, ktext, ktags in kept:
+                    kk = _norm(ktext)
+                    if k and (k in kk or kk in k):
+                        hit = (kfid, ktags)
+                        break
+                if hit:
+                    merged_tags = ",".join(
+                        dict.fromkeys((hit[1] + "," + (tags or "")).split(",")))
+                    con.execute("UPDATE facts SET tags=? WHERE id=?",
+                                (merged_tags.strip(","), hit[0]))
+                    con.execute("DELETE FROM facts WHERE id=?", (fid,))
+                    con.execute("DELETE FROM facts_fts WHERE rowid=?", (fid,))
+                    removed += 1
+                else:
+                    kept.append((fid, text, tags))
+        return removed
 
     def forget(self, ident):
         """按 id 或文本片段真删。"""
@@ -207,6 +244,8 @@ class Memory:
             age_days = max(0.0, (now - ts) / 86400)
             # bm25 越小越相关，叠加时间衰减
             score = float(rank) - age_days * 0.05
+            if "经验" in (tags or ""):
+                score -= 0.4  # 经验优先浮上来
             scored.append((score, fid, text, tags))
         scored.sort(key=lambda x: x[0])
         return scored[:limit]
@@ -235,7 +274,8 @@ class Memory:
         hits = self.search(query, limit=6) if query else []
         if hits:
             self.touch([h[1] for h in hits])
-            lines = "\n".join(f"- {h[2]}" for h in hits)
+            lines = "\n".join(
+                f"- [{h[3]}] {h[2]}" if h[3] else f"- {h[2]}" for h in hits)
             parts.append("[相关记忆]\n" + lines)
         text = "\n\n".join(parts)
         return text[:max_chars]
