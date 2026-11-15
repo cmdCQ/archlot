@@ -560,6 +560,38 @@ class Tools:
                          f"可见={info['visible']} 透明度={info['opacity']} "
                          f"内容最小={info.get('min_width')}x{info.get('min_height')}")}
 
+    def _t_memory(self, a):
+        mem = getattr(self.ui, "memory", None)
+        if mem is None:
+            return {"text": "记忆模块未启用"}
+        action = str(a.get("action", "search"))
+        if action == "add":
+            text = str(a.get("text", "")).strip()
+            if not text:
+                return {"text": "要记的内容为空"}
+            fid = mem.add(text, tags=str(a.get("tags", "")), source="agent")
+            return {"text": f"已记住（#{fid}）：{text}"}
+        if action == "search":
+            q = str(a.get("query", "")).strip()
+            hits = mem.search(q, limit=int(a.get("limit", 8)))
+            if not hits:
+                return {"text": "没有相关记忆"}
+            return {"text": "\n".join(f"#{i} {t}" for _, i, t, _ in hits)}
+        if action == "forget":
+            ident = str(a.get("id") or a.get("query") or "").strip()
+            if not ident:
+                return {"text": "要删哪条？给 id 或关键词"}
+            n = mem.forget(ident)
+            return {"text": f"已删除 {n} 条记忆"}
+        if action == "list":
+            rows = mem.recent(limit=int(a.get("limit", 12)))
+            stats = mem.stats()
+            if not rows:
+                return {"text": f"还没有记忆（活跃 0 条）"}
+            body = "\n".join(f"#{i} {t}" for i, t, _ in rows)
+            return {"text": f"共 {stats['active']} 条活跃记忆：\n{body}"}
+        return {"text": f"不支持的 action：{action}"}
+
     def _t_press_key(self, a):
         keys = str(a.get("keys", "")).strip()
         if not keys:
@@ -753,6 +785,19 @@ TOOLS = [
             "text": {"type": "string"},
             "method": {"type": "string", "enum": ["auto", "keys", "paste"]},
         }, "required": ["text"]},
+    }},
+    {"type": "function", "function": {
+        "name": "memory",
+        "description": "长期记忆。add 记一条稳定事实（用户偏好/环境/长期项目/明确要求）；search 检索；forget 按 id 或关键词删除；list 列出最近的。不要记一次性任务细节。",
+        "parameters": {"type": "object", "properties": {
+            "action": {"type": "string",
+                       "enum": ["add", "search", "forget", "list"]},
+            "text": {"type": "string", "description": "add 时要记的内容"},
+            "tags": {"type": "string"},
+            "query": {"type": "string"},
+            "id": {"type": "string"},
+            "limit": {"type": "integer"},
+        }, "required": ["action"]},
     }},
     {"type": "function", "function": {
         "name": "panel",

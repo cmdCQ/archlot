@@ -16,6 +16,7 @@ gi.require_version("Pango", "1.0")
 from gi.repository import Gdk, Gio, GLib, Graphene, Gtk, Pango  # noqa: E402
 
 import llm  # noqa: E402
+from memory import Memory  # noqa: E402
 from tools import TOOLS, Tools, list_windows, niri_json, run, screen_size  # noqa: E402
 
 APP_ID = "com.cqsomt.archlot"
@@ -46,6 +47,11 @@ SYSTEM_PROMPT = """你是 Archlot，跑在用户 cqsomt 的 Arch Linux + niri �
 
 你有真正能干活的工具：执行 shell、读写文件、看屏幕、动鼠标、敲键盘、切窗口。
 
+下面是关于用户和以往工作的长期记忆，可能为空：
+{memory}
+- 遇到值得长期记住的信息（稳定偏好、环境、长期项目、明确要求），用 memory(action="add") 记下来，不要记一次性细节。
+- 用户说“忘掉…”时，用 memory(action="forget")。
+
 工作区：{workspace}
 - 所有新建文件、脚本、下载和临时产物都放进工作区，不要写到家目录根下或别处。
 - 工作区外默认只读；确需改动工作区外的文件时先说明原因，程序会弹确认。
@@ -58,6 +64,24 @@ SYSTEM_PROMPT = """你是 Archlot，跑在用户 cqsomt 的 Arch Linux + niri �
 - 你可以用 panel 工具调整自己的窗口：位置、尺寸、贴边停靠、透明度、收起或唤出。用户让你改自己的样子或位置时直接调，不用问。
 - 默认是 auto 审查模式：普通命令和工作区外的只读/常规写入直接执行，不再弹框；只有 sudo、mkfs、dd、关机重启、卸载软件包、`rm -rf` 打到工作区外等真正危险的操作才会要求用户确认。
 - 绝不编造工具结果。做不到就直说做不到。
+"""
+
+
+EXTRACT_PROMPT = """你是记忆整理器。从下面这轮对话里提取值得长期记住的事实，最多 3 条。
+只记：用户稳定的偏好、习惯、环境配置、长期项目、明确的要求或禁区。
+不要记：一次性任务细节、临时数字、工具输出、助手自己的客套话。
+每条一句话，脱离上下文也能看懂，用第三人称（“用户…”）。
+只输出 JSON 数组，例如 [{"text": "用户偏好深色主题"}]；没有就输出 []。
+
+用户：{user}
+助手：{assistant}
+"""
+
+SUMMARY_PROMPT = """用 2-4 条短句总结这次对话：用户想做什么、实际做了什么、结论或待办。
+每条一行，以 "- " 开头，不要客套话。
+
+对话：
+{transcript}
 """
 
 
@@ -91,6 +115,7 @@ class Archlot(Gtk.Application):
         workspace = self.cfg.get("workspace") or os.path.expanduser("~/archlot-workspace")
         os.makedirs(workspace, exist_ok=True)
         self.workspace = os.path.abspath(os.path.expanduser(workspace))
+        self.memory = Memory()
         self.tools = Tools(self, self.workspace)
         self._confirm_event = None
         self._confirm_ok = False
@@ -800,6 +825,10 @@ class Archlot(Gtk.Application):
         return False
 
     def clear(self):
+        if self.messages:
+            snapshot = list(self.messages)
+            threading.Thread(target=self._summarize_session,
+                             args=(snapshot,), daemon=True).start()
         self._gen += 1
         if self.busy:
             self._cancel.set()
@@ -850,13 +879,19 @@ class Archlot(Gtk.Application):
 
     def run_agent(self, text):
         gen = self._gen
+        try:
+            mem_ctx = self.memory.context_for(text) or "（暂无）"
+        except Exception as exc:  # noqa: BLE001
+            _log(f"memory 读取失败：{exc}")
+            mem_ctx = "（暂无）"
         self.messages.append({"role": "user", "content": text})
         try:
             while True:
                 if self._cancel.is_set() or gen != self._gen:
                     break
                 payload = [{"role": "system",
-                            "content": SYSTEM_PROMPT.format(workspace=self.workspace)}] + self.messages
+                            "content": SYSTEM_PROMPT.format(
+                                workspace=self.workspace, memory=mem_ctx)}] + self.messages
                 _t0 = time.time()
                 msg, _finish = llm.stream_chat(
                     self.cfg, payload, TOOLS,
@@ -912,6 +947,14 @@ class Archlot(Gtk.Application):
                         {"type": "image_url",
                          "image_url": {"url": "data:image/jpeg;base64," + b64}},
                     ]})
+            last_reply = ""
+            for m in reversed(self.messages):
+                if m.get("role") == "assistant" and (m.get("content") or "").strip():
+                    last_reply = m["content"]
+                    break
+            if last_reply:
+                threading.Thread(target=self._auto_remember,
+                                 args=(text, last_reply), daemon=True).start()
             self.trim_history()
         except llm.LLMError as exc:
             GLib.idle_add(self.append_error, str(exc), gen)
@@ -1040,6 +1083,64 @@ class Archlot(Gtk.Application):
                                gesture.get_current_event_time())
         except Exception as exc:  # noqa: BLE001
             _log(f"begin_move 失败：{exc}")
+
+    # ------------------------------------------------------------ 自动记忆
+
+    def _parse_json_list(self, content):
+        text = (content or "").strip()
+        if text.startswith("```"):
+            text = text.strip("`")
+            if text.startswith("json"):
+                text = text[4:]
+        start, end = text.find("["), text.rfind("]")
+        if start < 0 or end <= start:
+            return []
+        try:
+            data = json.loads(text[start:end + 1])
+        except json.JSONDecodeError:
+            return []
+        return data if isinstance(data, list) else []
+
+    def _auto_remember(self, user_text, assistant_text):
+        if len(user_text) + len(assistant_text) < 20:
+            return
+        try:
+            prompt = EXTRACT_PROMPT.format(
+                user=user_text[:1500], assistant=assistant_text[:1500])
+            msg, _ = llm.stream_chat(
+                self.cfg, [{"role": "user", "content": prompt}])
+            for item in self._parse_json_list(msg.get("content") or "")[:3]:
+                text = item.get("text") if isinstance(item, dict) else str(item)
+                text = str(text or "").strip()
+                if len(text) >= 4:
+                    self.memory.add(text, source="auto")
+                    _log(f"memory add: {text}")
+        except Exception as exc:  # noqa: BLE001
+            _log(f"自动记忆失败：{exc}")
+
+    def _summarize_session(self, messages):
+        try:
+            lines = []
+            for m in messages[-16:]:
+                role = "用户" if m.get("role") == "user" else "助手"
+                body = m.get("content")
+                if not isinstance(body, str) or not body.strip():
+                    continue
+                lines.append(f"{role}：{body.strip()[:300]}")
+            if len(lines) < 2:
+                return
+            transcript = "\n".join(lines)
+            msg, _ = llm.stream_chat(
+                self.cfg,
+                [{"role": "user",
+                  "content": SUMMARY_PROMPT.format(transcript=transcript)}])
+            summary = (msg.get("content") or "").strip()
+            if summary:
+                self.memory.note("会话小结：\n" + summary[:600])
+                _log("memory note: 会话小结已写入")
+            self._auto_remember(transcript, "")
+        except Exception as exc:  # noqa: BLE001
+            _log(f"会话总结失败：{exc}")
 
     def _apply_chrome(self):
         w, h = self.geom["w"], self.geom["h"]
