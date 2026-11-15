@@ -38,6 +38,19 @@ Archlot is built the other way around: **the desktop is the interface**.
 - **Keyboard for the boring parts.** Text fields, Tab order, hotkeys, shell commands.
   The agent picks the cheapest reliable path instead of clicking every pixel.
 
+> The coordinate path is not vibes: screenshot pixels → logical screen → `uinput`
+> absolute values is one tested function, with measured error under **0.5 px** on a
+> 2048×1280 niri session. See [`tests/test_coords.py`](tests/test_coords.py).
+
+### How it compares
+
+| | Browser-only agents | Cloud computer-use | **Archlot** |
+|---|---|---|---|
+| Scope | one browser tab | a remote VM | your whole desktop |
+| Runs on | your machine or vendor cloud | vendor cloud | your session, locally |
+| Precision | DOM selectors | screenshot guessing | AT-SPI first, frame-bound pixels |
+| Memory | per session | vendor-side | local SQLite FTS5 |
+
 <div align="center">
 <img src="docs/panel.svg" alt="Archlot panel UI mockup" width="760">
 </div>

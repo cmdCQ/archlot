@@ -36,6 +36,19 @@ Archlot 反过来：**桌面才是界面**。
 - **能用键盘就不点。** 文本框、Tab 顺序、快捷键、shell 命令——
   选最省事又可靠的路径，而不是每个像素都点一遍。
 
+> 坐标不是拍脑袋：从截图像素 → 逻辑屏幕 → `uinput` 绝对值，只有一个经过测试的换算函数。
+> 在 2048×1280 的 niri 会话上实测误差小于 **0.5px**，见
+> [`tests/test_coords.py`](tests/test_coords.py)。
+
+### 和其他方案的区别
+
+| | 只做浏览器的 agent | 云端 computer-use | **Archlot** |
+|---|---|---|---|
+| 范围 | 一个浏览器标签页 | 一台远程虚拟机 | 整个桌面 |
+| 运行位置 | 本机或厂商云 | 厂商云 | 本机会话 |
+| 精度 | DOM 选择器 | 猜截图坐标 | AT-SPI 优先，点击绑定截图帧 |
+| 记忆 | 单次会话 | 厂商侧 | 本地 SQLite FTS5 |
+
 <div align="center">
 <img src="docs/panel.svg" alt="Archlot 面板界面示意" width="760">
 </div>
