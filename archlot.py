@@ -13,7 +13,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 gi.require_version("Pango", "1.0")
-from gi.repository import Gdk, Gio, GLib, Gtk, Pango  # noqa: E402
+from gi.repository import Gdk, Gio, GLib, Graphene, Gtk, Pango  # noqa: E402
 
 import llm  # noqa: E402
 from tools import TOOLS, Tools, list_windows, niri_json, run, screen_size  # noqa: E402
@@ -162,6 +162,13 @@ class Archlot(Gtk.Application):
         self.header.append(brand)
         self.header.append(self.thinking_dot)
         self.header.append(self.status)
+
+        # 按住标题栏直接拖动窗口
+        press = Gtk.GestureClick()
+        press.set_button(1)
+        press.connect("pressed", self._begin_drag)
+        self.header.add_controller(press)
+        self.header.set_cursor_from_name("grab")
         self.header.append(self.spinner)
         root.append(self.header)
 
@@ -267,7 +274,26 @@ class Archlot(Gtk.Application):
 
     def _watch_screen(self):
         self._fit_to_screen()
+        self._sync_geom_from_window()
         return True
+
+    def _sync_geom_from_window(self):
+        if self.win is None or not self.win.get_visible():
+            return
+        me = self._my_window()
+        if not me:
+            return
+        pos = (me.get("layout") or {}).get("tile_pos_in_workspace_view")
+        size = (me.get("layout") or {}).get("window_size")
+        if not pos or not size:
+            return
+        x, y = int(round(pos[0])), int(round(pos[1]))
+        w, h = int(size[0]), int(size[1])
+        if (x, y, w, h) == (self.geom["x"], self.geom["y"],
+                            self.geom["w"], self.geom["h"]):
+            return
+        self.geom.update({"x": x, "y": y, "w": w, "h": h})
+        self._save_geom()
 
     # ------------------------------------------------------------ 文本渲染
 
@@ -900,6 +926,21 @@ class Archlot(Gtk.Application):
             else:
                 self._apply_panel_size()
         return False
+
+    def _begin_drag(self, gesture, n_press, x, y):
+        surface = self.win.get_surface() if self.win else None
+        if surface is None:
+            return
+        try:
+            point = Graphene.Point()
+            point.init(x, y)
+            res = self.header.compute_point(self.win, point)
+            pt = res[-1] if isinstance(res, tuple) else res
+            device = gesture.get_current_event_device()
+            surface.begin_move(device, 1, pt.x, pt.y,
+                               gesture.get_current_event_time())
+        except Exception as exc:  # noqa: BLE001
+            _log(f"begin_move 失败：{exc}")
 
     def _apply_chrome(self):
         w, h = self.geom["w"], self.geom["h"]
