@@ -124,7 +124,7 @@ TOOLS = [
     }},
     {"type": "function", "function": {
         "name": "appearance",
-        "description": "调整 Archlot 自己的外观（不是别的窗口）。action=info 查看；set 改单个字段：opacity 0.2-1.0、accent/background 十六进制色、radius 0-28、font_scale 0.85-1.3、blur/xray 模糊、noise 0-0.1；preset 套用预设 default/midnight/warm/cyan/mono/rose；niri 生成配套的 niri window-rule（模糊和圆角裁剪，需要 niri 26.04+）；reset 恢复默认。",
+        "description": "调整 Archlot 自己的外观（不是别的窗口）。action=info 查看；set 改单个字段：opacity 0.2-1.0、accent/background 十六进制色、radius 0-28、font_scale 0.85-1.3；blur/xray/noise 只写进 niri 规则，由 niri 实际渲染（需要 niri 26.04+）；preset 套用预设 default/midnight/warm/cyan/mono/rose；niri 生成配套的 niri window-rule；reset 恢复默认。",
         "parameters": {"type": "object", "properties": {
             "action": {"type": "string",
                        "enum": ["info", "set", "preset", "niri", "reset"]},

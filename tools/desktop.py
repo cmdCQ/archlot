@@ -332,7 +332,7 @@ def appearance(tools, a) -> ToolResult:
     blur = "开" if info["blur"] else "关"
     return ok(f"外观 透明度={info['opacity']} 主色={info['accent']} "
               f"背景={info['background']} 圆角={info['radius']}px "
-              f"字号={info['font_scale']}x 模糊={blur} "
+              f"字号={info['font_scale']}x 模糊(niri)={blur} "
               f"xray={info['xray']} 噪点={info['noise']} "
               f"预设={','.join(info['presets'])}",
               meta={"kind": "act" if action in ("set", "preset", "reset")
