@@ -248,6 +248,12 @@ class Archlot(Gtk.Application):
         keys.connect("key-pressed", self.on_key)
         win.add_controller(keys)
 
+        GLib.timeout_add_seconds(3, self._watch_screen)
+
+    def _watch_screen(self):
+        self._fit_to_screen()
+        return True
+
     # ------------------------------------------------------------ 文本渲染
 
     def _tick_status(self):
@@ -420,7 +426,52 @@ class Archlot(Gtk.Application):
                     default[k] = saved[k]
         except (OSError, json.JSONDecodeError):
             pass
-        return default
+        return self._clamp_geom(default, self._screen)
+
+    @staticmethod
+    def _clamp_geom(geom, screen):
+        sw, sh = screen
+        w = max(80, min(int(geom.get("w", PANEL_W)), int(sw) - 2 * MARGIN))
+        h = max(60, min(int(geom.get("h", PANEL_H_MAX)), int(sh) - 2 * MARGIN))
+        x = min(max(int(geom.get("x", 0)), MARGIN),
+                max(MARGIN, int(sw) - MARGIN - w))
+        y = min(max(int(geom.get("y", 0)), MARGIN),
+                max(MARGIN, int(sh) - MARGIN - h))
+        out = dict(geom)
+        out.update({"x": x, "y": y, "w": w, "h": h})
+        return out
+
+    def _fit_to_screen(self):
+        """屏幕尺寸/缩放变了以后，把窗口收回到可见范围，并保持贴边/居中关系。"""
+        try:
+            sw, sh = screen_size()
+        except Exception:  # noqa: BLE001
+            return
+        sw, sh = int(sw), int(sh)
+        if (sw, sh) == tuple(self._screen):
+            return
+        os_w, os_h = self._screen
+        g = self.geom
+        right = abs((g["x"] + g["w"]) - (os_w - MARGIN)) <= 2
+        left = abs(g["x"] - MARGIN) <= 2
+        center_y = abs(g["y"] - (os_h - g["h"]) / 2) <= 2
+        centered_x = abs(g["x"] - (os_w - g["w"]) / 2) <= 2
+
+        self._screen = (sw, sh)
+        self.geom = self._clamp_geom(g, self._screen)
+        g = self.geom
+        if right:
+            g["x"] = sw - MARGIN - g["w"]
+        elif left:
+            g["x"] = MARGIN
+        elif centered_x:
+            g["x"] = (sw - g["w"]) // 2
+        if center_y:
+            g["y"] = (sh - g["h"]) // 2
+        self.geom = self._clamp_geom(g, self._screen)
+        self._save_geom()
+        if self.win is not None:
+            GLib.idle_add(self._apply_panel)
 
     def _save_geom(self):
         try:
@@ -468,6 +519,7 @@ class Archlot(Gtk.Application):
         _log("show")
         self.ensure_ui()
         self._hiding = False
+        self._fit_to_screen()
         self._remember_external_focus()
         self.header.set_visible(True)
         self.scroll.set_visible(True)
@@ -757,6 +809,7 @@ class Archlot(Gtk.Application):
 
     def _apply_panel(self):
         """在主线程应用几何变化。"""
+        self.geom = self._clamp_geom(self.geom, self._screen)
         if self.win is not None:
             self.win.set_opacity(self.geom.get("opacity", 1.0))
             w, h = self.geom["w"], self.geom["h"]
