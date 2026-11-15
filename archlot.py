@@ -74,17 +74,30 @@ SYSTEM_PROMPT = """你是 Archlot，跑在用户 cqsomt 的 Arch Linux + niri �
 
 
 EXTRACT_PROMPT = """你是记忆整理器。从下面这轮对话里提取值得长期记住的内容，最多 3 条。
-可以记的四类：
+可以记的三类：
 - preference：用户稳定的偏好、禁区（写成“用户偏好…”）
 - environment：环境、工具、路径、配置
 - project：长期项目、明确要求
-- lesson：这次任务学到的技术/操作教训（哪种做法失败、换成哪种才成功、工具或界面的坑）；不要记内容政策、价值观或拒绝类结论
+（技术教训由另一个反思流程单独负责，这里不要输出 lesson）
 不要记：一次性任务细节、临时数字、工具原始输出、客套话。
+每条只讲一件事，不要把多个事实合并成一条长句。
+下面已有记忆里出现过的内容不要再输出。
+
+已有记忆：
+{existing}
+
 每条一句话，脱离上下文也能看懂。
-只输出 JSON 数组，例如 [{{"text": "点击输入框要点中心，点边缘会落空", "kind": "lesson"}}]；没有就输出 []。
+只输出 JSON 数组，例如 [{{"text": "用户偏好简洁回答", "kind": "preference"}}]；没有就输出 []。
 
 用户：{user}
 助手：{assistant}
+"""
+
+CONSOLIDATE_PROMPT = """下面是长期记忆里的条目。找出内容重复、互相包含或只差措辞的组。
+只输出需要合并的组，格式 [{{"ids": [1, 5]}}]；没有重复就输出 []。
+不同主题的条目不要合并。
+
+{items}
 """
 
 SUMMARY_PROMPT = """用 2-4 条短句总结这次对话：用户想做什么、实际做了什么、结论或待办。
@@ -317,6 +330,7 @@ class Archlot(Gtk.Application):
         win.add_controller(keys)
 
         GLib.timeout_add_seconds(3, self._watch_screen)
+        threading.Thread(target=self._consolidate_memory, daemon=True).start()
 
     def _watch_screen(self):
         self._fit_to_screen()
@@ -1158,12 +1172,24 @@ class Archlot(Gtk.Application):
             return []
         return data if isinstance(data, list) else []
 
+    def _consolidate_memory(self):
+        """本地聚类合并重复记忆，不调模型。"""
+        try:
+            merged = self.memory.consolidate()
+            if merged:
+                _log(f"memory consolidate: 合并 {merged} 条")
+        except Exception as exc:  # noqa: BLE001
+            _log(f"记忆合并失败：{exc}")
+
     def _auto_remember(self, user_text, assistant_text):
         if len(user_text) + len(assistant_text) < 20:
             return
         try:
+            existing = "\n".join(
+                f"- {t[:80]}" for _, t, _ in self.memory.recent(20))
             prompt = EXTRACT_PROMPT.format(
-                user=user_text[:1500], assistant=assistant_text[:1500])
+                user=user_text[:1500], assistant=assistant_text[:1500],
+                existing=existing or "（空）")
             msg, _ = llm.stream_chat(
                 self.cfg, [{"role": "user", "content": prompt}])
             kinds = {"preference": "偏好", "environment": "环境",
@@ -1227,6 +1253,7 @@ class Archlot(Gtk.Application):
                 self.memory.note("会话小结：\n" + summary[:600])
                 _log("memory note: 会话小结已写入")
             self._auto_remember(transcript, "")
+            self._consolidate_memory()
         except Exception as exc:  # noqa: BLE001
             _log(f"会话总结失败：{exc}")
 
