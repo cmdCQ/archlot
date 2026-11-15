@@ -146,6 +146,8 @@ def css(state) -> str:
         f"  border-radius: {s['radius']}px;",
         "}",
         f".thinking-dot, .tool-dot {{ background-color: {accent}; }}",
+        (".tool-dot.tool-dot-done { animation: none; "
+         "background-color: rgba(150, 220, 170, 0.55); }"),
         f".stream-caret {{ color: {_rgba(accent, 0.85)}; }}",
         f"entry {{ caret-color: {accent}; }}",
         f"button.send {{ color: {_rgba(accent, 0.80)}; }}",
@@ -157,6 +159,21 @@ def css(state) -> str:
         f"spinner {{ color: {_rgba(accent, 0.70)}; }}",
         (" .tool-bar { background-image: linear-gradient(to right, %s, %s, %s); }"
          % (_rgba(accent, 0.0), _rgba(accent, 0.55), _rgba(accent, 0.0))),
+        # style.css 里的呼吸和完成闪光把紫色写死在 keyframes 里；
+        # 换一个动画名，才能跟着 accent 走。
+        "@keyframes archlot-breathe {",
+        "  0%, 100% { border-color: rgba(255, 255, 255, 0.06); }",
+        f"  50% {{ border-color: {_rgba(accent, 0.20)}; }}",
+        "}",
+        (".root.state-idle { animation: archlot-breathe 5.5s "
+         "ease-in-out infinite; }"),
+        (".root.state-busy { animation: archlot-breathe 1.5s "
+         "ease-in-out infinite; }"),
+        "@keyframes archlot-cardpop {",
+        f"  0% {{ background-color: {_rgba(accent, 0.16)}; }}",
+        "  100% { background-color: rgba(255, 255, 255, 0.026); }",
+        "}",
+        ".tool-card.tool-done { animation: archlot-cardpop 0.45s ease-out 1; }",
     ]
     for selector, base in _FONT_SIZES.items():
         size = base * s["font_scale"]
