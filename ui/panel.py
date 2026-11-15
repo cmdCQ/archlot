@@ -667,7 +667,9 @@ class Panel:
             return
         body = markdown.to_markup(self._stream_raw)
         if caret:
-            alpha = "58982" if self._stream_blink else "0"
+            # Pango 的 span alpha 只接受 1..65535；0（以及 0%/65536）会
+            # 让整个 set_markup 解析失败，流式文字会整段卡住。1 已经不可见。
+            alpha = "58982" if self._stream_blink else "1"
             body += (f'<span foreground="#b9a7f5" alpha="{alpha}">▍</span>')
         self._stream_label.set_markup(body)
 

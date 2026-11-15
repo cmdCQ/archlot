@@ -37,7 +37,8 @@ ui/               panel / chat / markdown / sound
    `win.set_opacity` 只用于收起淡出。
 4. **截图坐标到屏幕坐标**必须浮点换算，不要 `int()` 截断。
    截图默认 0.8 倍；小目标建议 1.0。
-5. **Pango alpha** 用 0–65536；`alpha="0%"` 会让整条消息渲染不出来。
+5. **Pango span alpha** 用 1–65535；`0`、`0%`、`65536` 都会让整段
+   `set_markup` 解析失败，流式文字会卡住。不可见用 `alpha="1"`。
 6. **niri 会夹取浮动窗口**，隐藏用“淡出 + unmap”，不要依赖位移。
 7. **`wl-copy` 会 fork**，必须丢 stdout/stderr，否则管道不关会卡到超时。
 8. **noVNC / KVM 不认 wtype 虚拟键盘**，用 `method="keys"` 走 uinput 真实键码。

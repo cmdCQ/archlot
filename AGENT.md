@@ -78,7 +78,8 @@ ui         ──► core
 9. **UI 细节不变量**见 `CLAUDE.md`：非 resizable 窗口改尺寸要先压最小尺寸；
    透明度作用在 `.root` 的 CSS alpha，不用 `win.set_opacity`；
    截图坐标必须浮点换算，不许 `int()` 截断；`wl-copy` 要丢管道；
-   Pango alpha 用 0–65536；niri 会夹取浮动窗口，隐藏靠淡出 + unmap。
+   Pango span alpha 用 1–65535（不可见用 1；0/0%/65536 会让整段 markup 解析失败）；
+   niri 会夹取浮动窗口，隐藏靠淡出 + unmap。
 
 ## 记忆
 
