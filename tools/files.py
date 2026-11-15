@@ -24,7 +24,10 @@ def run_shell(tools, a) -> ToolResult:
     if err.strip():
         body += ("\n[stderr]\n" + err.strip())
     note = f"\n[自动放行] 改动了工作区外：{outside}" if outside else ""
-    return ok(f"exit={rc}\n{system.clip(body)}{note}", meta={"exit": rc})
+    return ok(
+        f"exit={rc}\n{system.clip(body)}{note}",
+        meta={"exit": rc, "kind": "act",
+              "effect": "confirmed" if rc == 0 else "failed"})
 
 
 def read_file(tools, a) -> ToolResult:
@@ -33,7 +36,8 @@ def read_file(tools, a) -> ToolResult:
     if not os.path.isfile(path):
         return fail(f"不是文件：{path}", "bad_args")
     with open(path, "r", errors="replace") as f:
-        return ok(system.clip(f.read(limit + 1), limit))
+        return ok(system.clip(f.read(limit + 1), limit),
+                  meta={"kind": "observe"})
 
 
 def write_file(tools, a) -> ToolResult:
@@ -45,7 +49,9 @@ def write_file(tools, a) -> ToolResult:
     with open(path, "w") as f:
         f.write(content)
     note = "（工作区外）" if outside else ""
-    return ok(f"已写入 {path}{note}（{len(content)} 字符）", artifacts=[path])
+    return ok(f"已写入 {path}{note}（{len(content)} 字符）",
+              artifacts=[path],
+              meta={"kind": "act", "effect": "confirmed"})
 
 
 def list_dir(tools, a) -> ToolResult:
@@ -58,4 +64,4 @@ def list_dir(tools, a) -> ToolResult:
     for name in entries:
         full = os.path.join(path, name)
         lines.append(name + ("/" if os.path.isdir(full) else ""))
-    return ok("\n".join(lines) or "（空目录）")
+    return ok("\n".join(lines) or "（空目录）", meta={"kind": "observe"})

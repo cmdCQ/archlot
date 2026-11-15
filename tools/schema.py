@@ -34,16 +34,17 @@ TOOLS = [
     }},
     {"type": "function", "function": {
         "name": "screenshot",
-        "description": "截取整个屏幕给自己看。之后 click/move_mouse 的坐标用截图图片像素。",
+        "description": "截取整个屏幕给自己看，返回 frame 编号。之后 click/move_mouse 用这张图的像素坐标，并带上 frame。",
         "parameters": {"type": "object", "properties": {
             "scale": {"type": "number", "description": "缩放，默认 0.8；看整页布局可用 0.6，越大小目标越准"},
         }},
     }},
     {"type": "function", "function": {
         "name": "click",
-        "description": "用鼠标点击屏幕。坐标是最近一张截图的像素坐标。",
+        "description": "用鼠标点击屏幕。坐标是截图图片像素，必须带 frame。只保证事件发出，不保证点中目标；关键操作后截图确认。",
         "parameters": {"type": "object", "properties": {
             "x": {"type": "integer"}, "y": {"type": "integer"},
+            "frame": {"type": "integer", "description": "screenshot 返回的 frame；省略用最新一张，过期会被拒绝"},
             "button": {"type": "string", "enum": ["left", "right", "middle"]},
             "double": {"type": "boolean"},
         }, "required": ["x", "y"]},
@@ -53,6 +54,7 @@ TOOLS = [
         "description": "移动鼠标（截图像素坐标），不点击。",
         "parameters": {"type": "object", "properties": {
             "x": {"type": "integer"}, "y": {"type": "integer"},
+            "frame": {"type": "integer", "description": "screenshot 返回的 frame"},
         }, "required": ["x", "y"]},
     }},
     {"type": "function", "function": {

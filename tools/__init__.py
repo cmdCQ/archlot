@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import threading
+from dataclasses import dataclass
 
 from core import system
 from core.contracts import ToolContext, ToolResult, fail, ok
@@ -15,6 +16,18 @@ from .devices import VirtualMouse
 from .schema import TOOLS
 
 log = logging.getLogger(__name__)
+
+
+@dataclass
+class Shot:
+    """一张截图的身份与坐标空间；click 必须用它换算。"""
+
+    id: int
+    path: str
+    image_size: tuple[int, int]
+    screen_size: tuple[int, int]
+    scale: float
+
 
 HANDLERS = {
     "run_shell": files.run_shell,
@@ -38,7 +51,9 @@ class Tools:
     def __init__(self, ctx: ToolContext):
         self.ctx = ctx
         self._mouse = None
-        self.last_shot = None   # (width, height) 图片像素
+        self._shot_seq = 0
+        self._shots: dict[int, Shot] = {}
+        self.last_frame: int | None = None
         self._lock = threading.Lock()
 
     @property
@@ -46,6 +61,40 @@ class Tools:
         if self._mouse is None:
             self._mouse = VirtualMouse()
         return self._mouse
+
+    def begin_turn(self) -> None:
+        """新一轮清空截图缓存；旧 frame 不允许跨轮复用。"""
+        self._shots.clear()
+        self.last_frame = None
+        system.cleanup_shots()
+
+    def add_shot(self, path: str, image_size, screen_size,
+                 scale: float) -> Shot:
+        self._shot_seq += 1
+        shot = Shot(
+            self._shot_seq, path,
+            (int(image_size[0]), int(image_size[1])),
+            (int(screen_size[0]), int(screen_size[1])),
+            float(scale),
+        )
+        self._shots[shot.id] = shot
+        self.last_frame = shot.id
+        # 只保留最近若干帧；文件由 begin_turn 统一清理，
+        # 避免把本轮还没编码进历史的图片删掉。
+        for old in sorted(self._shots)[:-12]:
+            del self._shots[old]
+        return shot
+
+    def get_shot(self, frame=None) -> Shot | None:
+        if frame is None:
+            if self.last_frame is None:
+                return None
+            return self._shots.get(self.last_frame)
+        try:
+            fid = int(frame)
+        except (TypeError, ValueError):
+            return None
+        return self._shots.get(fid)
 
     def resolve(self, path):
         return system.resolve_path(self.ctx.workspace, path)

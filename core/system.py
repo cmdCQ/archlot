@@ -12,8 +12,26 @@ import subprocess
 import tempfile
 
 HOME = os.path.expanduser("~")
-SHOT_PATH = os.path.join(
-    tempfile.gettempdir(), f"archlot-shot-{os.getpid()}.jpg")
+SHOT_DIR = os.path.join(tempfile.gettempdir(), f"archlot-shots-{os.getpid()}")
+
+
+def new_shot_path():
+    """每次截图一个独立文件；同一轮多张截图不能互相覆盖。"""
+    os.makedirs(SHOT_DIR, exist_ok=True)
+    fd, path = tempfile.mkstemp(dir=SHOT_DIR, prefix="shot-", suffix=".jpg")
+    os.close(fd)
+    return path
+
+
+def cleanup_shots():
+    try:
+        for name in os.listdir(SHOT_DIR):
+            try:
+                os.unlink(os.path.join(SHOT_DIR, name))
+            except OSError:
+                pass
+    except OSError:
+        pass
 
 
 def run(cmd, timeout=60, cwd=None, input_text=None):

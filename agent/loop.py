@@ -105,6 +105,8 @@ class Agent:
         try:
             if gen != self._gen:
                 return
+            if hasattr(self.tools, "begin_turn"):
+                self.tools.begin_turn()
             self._habit_check(text)
             try:
                 mem_ctx = self.memory.context_for(text) or "（暂无）"
@@ -182,16 +184,20 @@ class Agent:
                     if (not result.ok and
                             result.error_kind not in ("denied", "cancelled")):
                         issues.append(f"{name}: {result.text[:200]}")
+                    elif result.meta.get("effect") == "failed":
+                        issues.append(f"{name}: {result.text[:200]}")
                     if result.image:
-                        pending_images.append(result.image)
+                        pending_images.append(
+                            (result.image, result.meta.get("frame")))
 
                 # 所有 tool 消息必须紧跟上一条 assistant，图片只能之后补
                 if pending_images:
                     self.history.strip_images()
-                    for image_path in pending_images:
-                        self.history.add_image(
-                            image_path,
-                            "（这是当前的屏幕截图，坐标以这张图的像素为准）")
+                    for image_path, frame in pending_images:
+                        note = ("（这是当前的屏幕截图，坐标以这张图的像素为准）"
+                                if frame is None else
+                                f"（截图 frame={frame}，坐标以这张图的像素为准）")
+                        self.history.add_image(image_path, note)
 
             last_reply = self.history.last_assistant_text()
             if last_reply and gen == self._gen:
