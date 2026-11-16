@@ -13,7 +13,7 @@ bin/archlot --daemon      # 只驻留，不显示
 ~/.config/archlot/config.json       # 模型配置
 ~/.config/archlot/window.json       # 位置 / 尺寸 / 当前外观
 ~/.config/archlot/appearance.json   # 默认外观 + 命名配置
-/tmp/archlot-app.log                # llm / 工具耗时、策略、记忆写入
+~/.local/state/archlot/app.log      # llm / 工具耗时、策略、记忆写入（ARCHLOT_LOG 可覆盖）
 
 ./install.sh            # 用户级安装（~/.local），--no-setup 跳过向导
 ./uninstall.sh          # 干净卸载，--purge 连配置和记忆

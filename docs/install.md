@@ -107,4 +107,4 @@ bin/archlot-setup       # 终端备用向导
 **鼠标点击没反应**：确认在 `input` 组里（`id -nG`），改过组之后要重新登录。
 
 **面板起不来**：先跑 `python3 -c 'import gi; gi.require_version("Gtk", "4.0")'`
-看 GTK4 是否可用；日志在 `/tmp/archlot-app.log`。
+看 GTK4 是否可用；日志在 `~/.local/state/archlot/app.log`（或 `$XDG_STATE_HOME/archlot/app.log`）。

@@ -328,7 +328,7 @@ Write a script that renames these photos by date, then run it.
 3. **Semantic before pixel.** Accessibility trees beat guessed coordinates; coordinates
    beat nothing.
 4. **Every action is auditable.** Structured results, frame ids, and logs in
-   `/tmp/archlot-app.log`.
+   `~/.local/state/archlot/app.log`.
 5. **No framework for its own sake.** No event bus, no DI container, no provider
    abstraction layer.
 

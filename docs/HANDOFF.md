@@ -3,7 +3,7 @@
 写给接手的人（或 Claude Code）。这里记录**代码里看不出来的上下文**：踩过的坑、用户的偏好、还没做完的决定。
 
 仓库：`~/projects/archlot`，主分支 `main`。
-运行：`bin/archlot --toggle`。日志：`/tmp/archlot-app.log`。
+运行：`bin/archlot --toggle`。日志：`~/.local/state/archlot/app.log`（`ARCHLOT_LOG` 可覆盖）。
 安装：`./install.sh`；图形设置 / 首次教程：`bin/archlot --setup`；卸载：`./uninstall.sh`。
 
 ---
