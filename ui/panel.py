@@ -745,9 +745,12 @@ class Panel:
         try:
             # GTK 对非法 markup 只打警告然后把标签设成原文（不抛异常），
             # 所以先自己 parse 一遍，失败就直接走纯文本。
-            Pango.parse_markup(body, -1, "")
-        except GLib.Error as exc:
-            log.warning("markup 解析失败，退回纯文本：%s", exc.message)
+            # accel_marker 必须是单个字符；空串会抛 TypeError（不是 GLib.Error），
+            # 必须在下面一起接住，否则整轮结束时会停在 caret 上。
+            Pango.parse_markup(body, -1, "\0")
+        except (GLib.Error, TypeError, ValueError) as exc:
+            log.warning("markup 解析失败，退回纯文本：%s",
+                        getattr(exc, "message", str(exc)))
             self._stream_label.set_text(self._stream_raw)
             return
         self._stream_label.set_markup(body)
