@@ -72,6 +72,10 @@ class Tools:
             self._a11y = a11y_tool.A11y()
         return self._a11y
 
+    def bind_cancel(self, event) -> None:
+        """接上 agent 的停止信号；长命令靠它立刻退出，而不是等超时。"""
+        self.ctx.cancel_event = event
+
     def begin_turn(self) -> None:
         """新一轮清空截图/快照缓存；旧 frame 和 ref 不允许跨轮复用。"""
         self._shots.clear()

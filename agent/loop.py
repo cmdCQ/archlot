@@ -56,6 +56,8 @@ class Agent:
         self._gen = 0
         self._busy = False
         self._queue: list[tuple[int, str]] = []
+        if hasattr(self.tools, "bind_cancel"):
+            self.tools.bind_cancel(self._cancel)
         threading.Thread(target=self._consolidate_memory, daemon=True).start()
 
     # ---------------------------------------------------------------- 对外

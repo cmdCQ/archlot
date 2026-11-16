@@ -470,6 +470,10 @@ class Panel:
             self.entry.grab_focus()
 
     def _cancelling_main(self):
+        # 停止优先于未答的确认框，否则 worker 还要等确认超时。
+        if (self._confirm_event is not None
+                and not self._confirm_event.is_set()):
+            self._answer_confirm(False)
         self.status.set_text("正在停止…")
         self.status.set_visible(True)
 
@@ -568,12 +572,15 @@ class Panel:
                 self._answer_confirm(True)
                 return True
         if keyval == Gdk.KEY_Escape:
-            if (self._confirm_event is not None
-                    and not self._confirm_event.is_set()):
+            pending = (self._confirm_event is not None
+                       and not self._confirm_event.is_set())
+            if pending:
+                # 确认框还开着时 Escape 同时表示“拒绝这一步”和“停下整轮”：
+                # 只拒绝的话 agent 会继续规划下一条命令，看起来像没反应。
                 self._answer_confirm(False)
-            elif self._busy and self.agent is not None:
+            if self._busy and self.agent is not None:
                 self.agent.cancel()
-            else:
+            elif not pending:
                 self.hide()
             return True
         if keyval == Gdk.KEY_l and (state & Gdk.ModifierType.CONTROL_MASK):
@@ -598,8 +605,12 @@ class Panel:
         return self._confirm_ok
 
     def _show_confirm_main(self, title, detail):
-        if self.win is not None and not self.win.get_visible():
-            self.show()
+        if self.win is not None:
+            if not self.win.get_visible():
+                self.show()
+            elif not self.win.is_active():
+                # 焦点不在面板时 Enter / Escape 都收不到，确认框等于点不动。
+                self.win.present()
         self._awaiting_confirm = True
         self.status.set_text("等待确认")
         self.status.set_visible(True)

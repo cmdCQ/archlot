@@ -39,6 +39,8 @@ class ToolContext:
     before_shot: Callable[[], None] | None = None
     after_shot: Callable[[], None] | None = None
     max_tool_seconds: int = 120
+    # agent 的停止信号（threading.Event）；工具靠它打断正在跑的子进程。
+    cancel_event: Any = None
 
 
 class UI(Protocol):

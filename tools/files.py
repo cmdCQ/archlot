@@ -18,8 +18,12 @@ def run_shell(tools, a) -> ToolResult:
         timeout = 60
     timeout = min(max(1, timeout), tools.ctx.max_tool_seconds)
     outside = tools.ctx.policy.outside_write(cmd)
+    cancel = getattr(tools.ctx, "cancel_event", None)
     rc, out, err = system.run(["bash", "-lc", cmd],
-                              cwd=tools.ctx.workspace, timeout=timeout)
+                              cwd=tools.ctx.workspace, timeout=timeout,
+                              cancel=cancel)
+    if rc == 130 and cancel is not None and cancel.is_set():
+        return fail("已取消。", "cancelled")
     body = out.strip()
     if err.strip():
         body += ("\n[stderr]\n" + err.strip())

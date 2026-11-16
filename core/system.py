@@ -7,9 +7,11 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import struct
 import subprocess
 import tempfile
+import time
 
 HOME = os.path.expanduser("~")
 SHOT_DIR = os.path.join(tempfile.gettempdir(), f"archlot-shots-{os.getpid()}")
@@ -34,17 +36,62 @@ def cleanup_shots():
         pass
 
 
-def run(cmd, timeout=60, cwd=None, input_text=None):
+def _kill(p):
+    """结束整个进程组，命令拉起的子进程也不会漏。"""
     try:
-        p = subprocess.run(
-            cmd, cwd=cwd or HOME, input=input_text,
-            capture_output=True, text=True, timeout=timeout,
-        )
-        return p.returncode, p.stdout, p.stderr
+        os.killpg(p.pid, signal.SIGTERM)
+    except OSError:
+        try:
+            p.terminate()
+        except OSError:
+            pass
+    try:
+        p.wait(timeout=0.5)
+        return
     except subprocess.TimeoutExpired:
-        return 124, "", f"超时（{timeout}s）"
+        pass
+    try:
+        os.killpg(p.pid, signal.SIGKILL)
+    except OSError:
+        try:
+            p.kill()
+        except OSError:
+            pass
+
+
+def run(cmd, timeout=60, cwd=None, input_text=None, cancel=None):
+    """跑子进程，返回 (rc, stdout, stderr)。
+
+    用 Popen + 100ms 轮询而不是 subprocess.run：cancel 被设置时立刻
+    结束整个进程组，不用等命令自己跑完。取消返回 130，超时返回 124。
+    """
+    try:
+        p = subprocess.Popen(
+            cmd, cwd=cwd or HOME,
+            stdin=subprocess.PIPE if input_text is not None
+            else subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, start_new_session=True,
+        )
     except FileNotFoundError as exc:
         return 127, "", f"找不到命令：{exc}"
+    deadline = time.monotonic() + timeout
+    pending = input_text
+    while True:
+        try:
+            out, err = p.communicate(input=pending, timeout=0.1)
+            return p.returncode, out or "", err or ""
+        except subprocess.TimeoutExpired:
+            # 重试 communicate 不会丢已经读到的输出。
+            pending = None
+            if cancel is not None and cancel.is_set():
+                _kill(p)
+                out, err = p.communicate()
+                return 130, out or "", (err or "") + "已取消"
+            if time.monotonic() >= deadline:
+                _kill(p)
+                out, err = p.communicate()
+                return 124, out or "", (err or "") + f"超时（{timeout}s）"
 
 
 def niri_json(*args, timeout=5):

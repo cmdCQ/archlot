@@ -214,7 +214,7 @@ chmod 600 ~/.config/archlot/config.json
 |---|---|
 | `Enter` | 发送当前输入 |
 | `Ctrl+L` | **清空上下文**：重置本轮会话和消息列表，长期记忆保留 |
-| `Escape` | 有任务在跑就取消；有确认框就拒绝；否则收起面板 |
+| `Escape` | 立刻停下整轮任务（确认框同时按拒绝）；空闲时收起面板 |
 | `bin/archlot --toggle` | 唤出 / 收起 |
 | `bin/archlot --setup` | 打开设置面板；首次运行先走教程 |
 | `bin/archlot --daemon` | 只驻留，不显示 |

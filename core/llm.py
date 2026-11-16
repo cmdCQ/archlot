@@ -1,6 +1,7 @@
 """DeepSeek（OpenAI 兼容）流式客户端，只用标准库。"""
 
 import json
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -10,28 +11,58 @@ class LLMError(Exception):
     pass
 
 
+class _Cancelled(Exception):
+    """内部信号：这一轮已经被用户停掉，不必再发请求。"""
+
+
 def _get(cfg, key, default=None):
     if isinstance(cfg, dict):
         return cfg.get(key, default)
     return getattr(cfg, key, default)
 
 
-def _open(req):
-    """429/5xx 短暂重试；其他错误立即转成 LLMError。"""
+def _wait(seconds, cancel):
+    """可取消的等待；返回 False 表示中途被停止。"""
+    if cancel is None:
+        time.sleep(seconds)
+        return True
+    return not cancel.wait(seconds)
+
+
+def _open(req, cancel=None):
+    """429/5xx 短暂重试；其他错误立即转成 LLMError。
+
+    等待重试的间隙也看停止信号：用户按了 Esc 就不要再等第二次请求。
+    """
     for attempt in range(3):
+        if cancel is not None and cancel.is_set():
+            raise _Cancelled()
         try:
             return urllib.request.urlopen(req, timeout=300)
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", "replace")
             if exc.code in (429, 500, 502, 503, 504) and attempt < 2:
-                time.sleep(1.0 * (attempt + 1))
+                if not _wait(1.0 * (attempt + 1), cancel):
+                    raise _Cancelled() from None
                 continue
             raise LLMError(f"HTTP {exc.code}：{detail[:400]}") from None
         except Exception as exc:  # noqa: BLE001
             if attempt < 2:
-                time.sleep(1.0 * (attempt + 1))
+                if not _wait(1.0 * (attempt + 1), cancel):
+                    raise _Cancelled() from None
                 continue
             raise LLMError(f"连接失败：{exc}") from None
+
+
+def _close_on_cancel(resp, cancel, done):
+    """模型半天不吐字时，停止也会主动断开连接，而不是干等下一个数据包。"""
+    while not done.is_set():
+        if cancel.wait(0.1):
+            try:
+                resp.close()
+            except Exception:  # noqa: BLE001
+                pass
+            return
 
 
 def build_body(cfg, messages, tools=None, effort=None):
@@ -68,59 +99,82 @@ def stream_chat(cfg, messages, tools=None, on_text=None, on_reason=None,
             "Accept": "text/event-stream",
         },
     )
-    resp = _open(req)
+    try:
+        resp = _open(req, cancel)
+    except _Cancelled:
+        return {"role": "assistant", "content": None}, "cancelled"
+    if cancel is not None and cancel.is_set():
+        try:
+            resp.close()
+        except OSError:
+            pass
+        return {"role": "assistant", "content": None}, "cancelled"
 
     content, reasoning = [], []
     calls = {}
     finish = None
 
-    with resp:
-        for raw in resp:
-            if cancel is not None and cancel.is_set():
-                break
-            line = raw.decode("utf-8", "replace").strip()
-            if not line.startswith("data:"):
-                continue
-            data = line[5:].strip()
-            if data == "[DONE]":
-                break
-            try:
-                chunk = json.loads(data)
-            except json.JSONDecodeError:
-                continue
-            if chunk.get("error"):
-                err = chunk["error"]
-                if isinstance(err, dict):
-                    err = err.get("message") or json.dumps(err, ensure_ascii=False)
-                raise LLMError(f"接口返回错误：{err}")
-            choices = chunk.get("choices") or []
-            if not choices:
-                continue
-            choice = choices[0]
-            delta = choice.get("delta") or {}
+    done = threading.Event()
+    if cancel is not None:
+        threading.Thread(target=_close_on_cancel,
+                         args=(resp, cancel, done), daemon=True).start()
 
-            if delta.get("reasoning_content"):
-                reasoning.append(delta["reasoning_content"])
-                if on_reason:
-                    on_reason(delta["reasoning_content"])
-            if delta.get("content"):
-                content.append(delta["content"])
-                if on_text:
-                    on_text(delta["content"])
+    try:
+        with resp:
+            for raw in resp:
+                if cancel is not None and cancel.is_set():
+                    break
+                line = raw.decode("utf-8", "replace").strip()
+                if not line.startswith("data:"):
+                    continue
+                data = line[5:].strip()
+                if data == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(data)
+                except json.JSONDecodeError:
+                    continue
+                if chunk.get("error"):
+                    err = chunk["error"]
+                    if isinstance(err, dict):
+                        err = (err.get("message")
+                               or json.dumps(err, ensure_ascii=False))
+                    raise LLMError(f"接口返回错误：{err}")
+                choices = chunk.get("choices") or []
+                if not choices:
+                    continue
+                choice = choices[0]
+                delta = choice.get("delta") or {}
 
-            for tc in delta.get("tool_calls") or []:
-                idx = tc.get("index", 0)
-                slot = calls.setdefault(idx, {"id": "", "name": "", "args": ""})
-                if tc.get("id"):
-                    slot["id"] = tc["id"]
-                fn = tc.get("function") or {}
-                if fn.get("name"):
-                    slot["name"] += fn["name"]
-                if fn.get("arguments"):
-                    slot["args"] += fn["arguments"]
+                if delta.get("reasoning_content"):
+                    reasoning.append(delta["reasoning_content"])
+                    if on_reason:
+                        on_reason(delta["reasoning_content"])
+                if delta.get("content"):
+                    content.append(delta["content"])
+                    if on_text:
+                        on_text(delta["content"])
 
-            if choice.get("finish_reason"):
-                finish = choice["finish_reason"]
+                for tc in delta.get("tool_calls") or []:
+                    idx = tc.get("index", 0)
+                    slot = calls.setdefault(
+                        idx, {"id": "", "name": "", "args": ""})
+                    if tc.get("id"):
+                        slot["id"] = tc["id"]
+                    fn = tc.get("function") or {}
+                    if fn.get("name"):
+                        slot["name"] += fn["name"]
+                    if fn.get("arguments"):
+                        slot["args"] += fn["arguments"]
+
+                if choice.get("finish_reason"):
+                    finish = choice["finish_reason"]
+    except Exception:  # noqa: BLE001
+        # 取消时是我们从另一个线程关掉了连接，读报错不算失败。
+        if cancel is None or not cancel.is_set():
+            raise
+    finally:
+        done.set()
 
     tool_calls = [
         {

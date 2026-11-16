@@ -219,7 +219,7 @@ Restart Archlot after editing. The key stays on your machine; only model request
 |---|---|
 | `Enter` | Send the current input |
 | `Ctrl+L` | **Clear the context**: resets the conversation and messages; long-term memory is kept |
-| `Escape` | Cancel a running task, reject a confirmation dialog, or hide the panel |
+| `Escape` | Stop the running task immediately (a pending confirmation is declined too); hide the panel when idle |
 | `bin/archlot --toggle` | Show / hide |
 | `bin/archlot --setup` | Open settings (first run: onboarding) |
 | `bin/archlot --daemon` | Stay resident without showing |

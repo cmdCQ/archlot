@@ -74,7 +74,9 @@ ui         ──► core
    写 JSON 用 `atomic_write_json`。
 
 7. **循环必须有预算。** `max_steps`、`max_turn_seconds`、`max_tool_seconds`
-   都在 `Config` 里；新增循环必须能取消、能超时。
+   都在 `Config` 里；新增循环必须能取消、能超时。长命令走
+   `core.system.run(..., cancel=ctx.cancel_event)`，Escape 要能在 100ms 内
+   结束整个进程组，不能等命令自己跑完；等待确认时也必须观察停止信号。
 
 8. **输入框固定 `im-module=fcitx5`**。GTK 4.24 的 Wayland text-input 在中文
    preedit 时光标不跟随，走 fcitx5 的 GTK 模块可以避开；不要删掉这个属性。
