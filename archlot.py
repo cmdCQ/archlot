@@ -28,6 +28,7 @@ CSS_PATH = os.path.join(BASE, "style.css")
 def setup_logging():
     fmt = "%(asctime)s %(levelname)s %(name)s: %(message)s"
     try:
+        os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
         logging.basicConfig(
             filename=LOG_PATH, level=logging.INFO,
             format=fmt, datefmt="%H:%M:%S")

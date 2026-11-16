@@ -49,10 +49,20 @@ class MessageHistory:
         if len(self.items) <= self.max_messages:
             return
         cut = len(self.items) - self.max_messages
+        # 优先切在真正的用户消息上；回合内的 agentic 循环里没有这种消息，
+        # 退而切在 assistant 边界（tool_calls 组之前），保证不切断配对。
         while cut < len(self.items) and not self._is_turn_start(self.items[cut]):
             cut += 1
-        if cut < len(self.items):
-            self.items = self.items[cut:]
+        if cut >= len(self.items):
+            cut = len(self.items) - self.max_messages
+            while cut < len(self.items) and (
+                    self.items[cut].get("role") != "assistant"):
+                cut += 1
+        if cut >= len(self.items):
+            return
+        head = self.items[:1] if self._is_turn_start(self.items[0]) else []
+        marker = [{"role": "user", "content": "（更早的对话已省略）"}]
+        self.items = head + marker + self.items[cut:]
 
     @staticmethod
     def _is_turn_start(m: dict) -> bool:
@@ -60,19 +70,30 @@ class MessageHistory:
         return m.get("role") == "user" and isinstance(m.get("content"), str)
 
     def _repair(self) -> None:
-        """丢掉末尾不完整的 tool_calls 组，避免下一次请求 400。"""
+        """补全末尾不完整的 tool_calls 组，避免下一次请求 400。
+
+        注意：不能整段丢弃——用户在被中断之后说的那句话往往就排在
+        这个残缺组后面，丢掉会让模型完全看不见新指令。
+        """
         last = None
         for i, m in enumerate(self.items):
             if m.get("role") == "assistant" and m.get("tool_calls"):
                 last = i
         if last is None:
             return
-        wanted = {tc.get("id") for tc in self.items[last]["tool_calls"]}
+        wanted = [tc.get("id") for tc in self.items[last]["tool_calls"]]
         seen = {m.get("tool_call_id") for m in self.items[last + 1:]
                 if m.get("role") == "tool"}
-        if not wanted.issubset(seen):
-            log.warning("丢弃不完整的 tool_calls 组：缺 %s", wanted - seen)
-            self.items = self.items[:last]
+        missing = [cid for cid in wanted if cid not in seen]
+        if not missing:
+            return
+        log.warning("补全被中断的 tool_calls：缺 %s", missing)
+        tail = [m for m in self.items[last + 1:] if m.get("role") == "user"]
+        fixed = self.items[:last + 1]
+        for cid in missing:
+            fixed.append({"role": "tool", "tool_call_id": cid,
+                          "content": "（该操作被用户中断，未执行）"})
+        self.items = fixed + tail
 
     def payload(self) -> list[dict]:
         self._repair()

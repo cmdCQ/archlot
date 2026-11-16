@@ -5,7 +5,9 @@
 
 from __future__ import annotations
 
+import getpass
 import json
+import os
 import logging
 import threading
 import time
@@ -262,6 +264,8 @@ class Agent:
 
     def _system_prompt(self, mem_ctx: str) -> str:
         return SYSTEM_PROMPT.format(
+            user=os.environ.get("USER") or getpass.getuser(),
+            desktop=os.environ.get("XDG_CURRENT_DESKTOP") or "Linux Wayland",
             workspace=self.cfg.workspace,
             memory=mem_ctx,
             now=time.strftime("%Y-%m-%d %H:%M %A"),

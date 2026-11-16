@@ -1,0 +1,30 @@
+# Maintainer: <you> <you@example.com>
+pkgname=archlot
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="住在 Linux 桌面上的本地 AI 助手（GTK4 侧栏 + AT-SPI + uinput）"
+arch=('any')
+url="https://github.com/cmdCQ/archlot"
+license=('MIT')
+depends=('python' 'python-gobject' 'gtk4' 'at-spi2-core' 'grim'
+         'wtype' 'wl-clipboard' 'ffmpeg')
+optdepends=('fcitx5: 应用内中文输入')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+  depends+=('niri')   # 目前只验证过 niri，见 README
+  install -d "$pkgdir/usr/share/archlot"
+  cp -r "$srcdir/$pkgname-$pkgver/"{archlot.py,core,agent,tools,ui,style.css} \
+        "$pkgdir/usr/share/archlot/"
+  install -Dm755 "$srcdir/$pkgname-$pkgver/bin/archlot" \
+        "$pkgdir/usr/bin/archlot"
+  install -Dm755 "$srcdir/$pkgname-$pkgver/bin/archlot-check" \
+        "$pkgdir/usr/bin/archlot-check"
+  install -Dm644 "$srcdir/$pkgname-$pkgver/install/archlot.desktop" \
+        "$pkgdir/usr/share/applications/archlot.desktop"
+  install -Dm644 "$srcdir/$pkgname-$pkgver/LICENSE" \
+        "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  # 安装后提示：sudo usermod -aG input "$USER"
+  install -Dm644 /dev/null "$pkgdir/usr/share/archlot/.installed"
+}

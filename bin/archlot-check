@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+"""安装自检：不 import GTK，装完先跑这个。
+
+用法：bin/archlot-check
+退出码 0 = 全部就绪；1 = 有问题（每条都给出该怎么修）。
+"""
+
+import os
+import shutil
+import subprocess
+import sys
+
+PROBES = [
+    ("niri", "niri", "Archlot 只验证过 niri；面板贴边、窗口列表都靠 niri msg"),
+    ("grim", "grim", "没有 grim 就没法截图：sudo pacman -S grim"),
+    ("wtype", "wtype", "没有 wtype 就没法输入 ASCII：sudo pacman -S wtype"),
+    ("wl-copy", "wl-copy", "剪贴板输入需要 wl-clipboard：sudo pacman -S wl-clipboard"),
+    ("ffmpeg", "ffmpeg", "没有 ffmpeg 就没有截图坐标网格（功能降级但可用）"),
+]
+
+
+def line(ok, text, hint=""):
+    mark = "✓" if ok else "✗"
+    print(f"  {mark} {text}")
+    if not ok and hint:
+        print(f"    → {hint}")
+
+
+def main():
+    bad = 0
+    print("Archlot 自检")
+
+    print("\n[1] Python 与 GTK")
+    line(sys.version_info >= (3, 11), f"Python {sys.version.split()[0]}（需要 3.11+）",
+         "装 python3.11+")
+    try:
+        import gi  # noqa: F401
+        gi.require_version("Gtk", "4.0")
+        from gi.repository import Gtk  # noqa: F401
+        line(True, "PyGObject + GTK4 可用")
+        try:
+            minor = Gtk.get_minor_version()
+            line(minor >= 24, f"GTK 4.{minor}（4.24+ 才支持 im-module，中文输入更稳）",
+                 "老版本仍可运行，会沿用系统输入法")
+        except Exception:  # noqa: BLE001
+            pass
+    except Exception as exc:  # noqa: BLE001
+        bad += 1
+        line(False, f"GTK4 不可用：{exc}", "sudo pacman -S python-gobject gtk4")
+
+    print("\n[2] 桌面与工具")
+    for name, binary, hint in PROBES:
+        ok = shutil.which(binary) is not None
+        if not ok:
+            bad += 1
+        line(ok, f"{name}", hint)
+
+    print("\n[3] 虚拟鼠标 /dev/uinput")
+    try:
+        fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
+        os.close(fd)
+        line(True, "/dev/uinput 可写")
+    except OSError as exc:
+        bad += 1
+        line(False, f"/dev/uinput 打不开：{exc}",
+             'sudo usermod -aG input "$USER" 然后重新登录')
+
+    print("\n[4] 可访问性（AT-SPI）")
+    rc, out, _ = _run(["gdbus", "call", "--session", "-d", "org.a11y.Bus",
+                       "-o", "/org/a11y/bus", "-m",
+                       "org.a11y.Status.IsEnabled"])
+    if rc != 0:
+        line(False, "AT-SPI 状态读不到（语义模式不可用，只能靠截图）",
+             "确保装了 at-spi2-core 且会话里有 at-spi2-registryd")
+    else:
+        enabled = "true" in out.lower()
+        line(enabled, "AT-SPI 已启用" if enabled else "AT-SPI 未启用",
+             "GNOME/GTK 会话里设 org.gnome.desktop.interface toolkit-accessibility true")
+
+    print("\n[5] 配置")
+    cfg_path = os.path.expanduser("~/.config/archlot/config.json")
+    if not os.path.exists(cfg_path):
+        bad += 1
+        line(False, f"没有 {cfg_path}", "跑一次 bin/archlot 会自动生成，然后填 api_key")
+    else:
+        mode = oct(os.stat(cfg_path).st_mode & 0o777)
+        line(mode in ("0o600", "0o400"), f"{cfg_path} 权限 {mode}",
+             "chmod 600 这个文件")
+        key = _read_key(cfg_path)
+        line(bool(key), "api_key 已填" if key else "api_key 是空的",
+             "填 api_key，或者 export DEEPSEEK_API_KEY")
+
+    print()
+    if bad:
+        print(f"有 {bad} 项需要处理。")
+        return 1
+    print("全部就绪。bin/archlot 启动面板。")
+    return 0
+
+
+def _run(cmd):
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+        return p.returncode, p.stdout, p.stderr
+    except (OSError, subprocess.SubprocessError):
+        return 127, "", ""
+
+
+def _read_key(path):
+    import json
+    try:
+        with open(path) as f:
+            key = (json.load(f).get("api_key") or "").strip()
+    except (OSError, ValueError):
+        return ""
+    return key or os.environ.get("DEEPSEEK_API_KEY", "")
+
+
+if __name__ == "__main__":
+    sys.exit(main())

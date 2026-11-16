@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Archlot
+Comment=住在 Linux 桌面上的本地 AI 助手
+# Exec 里的路径在打包时替换成真实安装位置（见 install/PKGBUILD）
+Exec=/usr/bin/archlot --toggle
+Icon=archlot
+Terminal=false
+Categories=Utility;Development;
+Keywords=ai;assistant;automation;
+StartupNotify=false

@@ -38,15 +38,30 @@ DANGER_AUTO_RE = re.compile(
     r"pacman\s+-(R|Rn|Rns|Rc|Rdd)|yay\s+-R|paru\s+-R|"
     r"systemctl\s+(poweroff|reboot|halt|kexec)|"
     r"chmod\s+-R\s+777\s+/|chown\s+-R\s+[^\s]+\s+/(etc|usr|boot|var|home)\b|"
-    r">\s*/dev/sd|>\s*/etc/|:\(\)\s*\{)",
+    r">\s*/dev/sd|>\s*/etc/|:\(\)\s*\{|"
+    # 网络内容直接进解释器、批量通配删除、find -delete、kill -9 1
+    r"\|\s*(?:ba|z|k|da)?sh\b|"
+    r"(?:curl|wget|aria2c)\b[^\n]*\|\s*(?:python3?|perl|ruby|node)\b|"
+    r"\bfind\b[^\n]*\s-delete\b|\brm\s+-[a-zA-Z]*\s+\*|"
+    r"\bkill\s+-9\s+1\b)",
     re.IGNORECASE,
 )
 
 # 真正危险的目标：删这些才需要确认
 CRITICAL_DIRS = ("/", "/home", "/etc", "/usr", "/boot", "/var", "/root", "/opt",
                  "/mnt", "/srv", "/lib", "/bin", "/sbin")
-SYSTEM_PREFIX = ("/etc", "/usr", "/boot", "/var", "/root", "/opt", "/mnt",
+SYSTEM_PREFIX = ("/etc", "/usr", "/boot", "/var", "/opt", "/mnt",
                  "/srv", "/lib", "/bin", "/sbin", "/sys", "/proc", "/dev")
+
+
+def _under(path: str, roots) -> bool:
+    """按路径边界判断，避免 "/root" 误伤 "/rooted"、"/etc" 误伤 "/etc2"。"""
+    for root in roots:
+        if root == "/":
+            return True
+        if path == root or path.startswith(root + "/"):
+            return True
+    return False
 
 MUTATE_RE = re.compile(
     r"(^|[;&|]\s*)(rm|mv|cp|touch|mkdir|rmdir|chmod|chown|ln|truncate|"
@@ -58,7 +73,14 @@ MUTATE_RE = re.compile(
 class Policy:
     def __init__(self, cfg):
         self.mode = cfg.confirm_mode
+        self.home = os.path.expanduser("~")
         self.workspace = os.path.abspath(os.path.expanduser(cfg.workspace))
+
+    def _expand(self, raw: str) -> str:
+        """只在开头把 ~ 换成家目录；Policy 构造后不再读环境变量。"""
+        if raw == "~" or raw.startswith("~/"):
+            return os.path.abspath(self.home + raw[1:])
+        return os.path.abspath(os.path.expanduser(raw))
 
     # ---------------------------------------------------------------- 路径
 
@@ -70,22 +92,40 @@ class Policy:
 
     # ---------------------------------------------------------------- 判定
 
+    # rm 的长短选项、无选项都要覆盖：rm --recursive --force /etc 与 rm /etc/passwd
+    RM_RE = re.compile(r"\brm\s+((?:--?[\w-]+\s+)*)(.+)")
+
+    def _critical_target(self, path: str) -> bool:
+        """这是不是"不该被自动删掉"的路径。"""
+        home = self.home
+        # 自己的家目录里的子目录可以删；整个家目录不能
+        if path == home:
+            return True
+        if path in CRITICAL_DIRS:
+            return True
+        if _under(path, SYSTEM_PREFIX):
+            return True
+        # 别人的家目录（多用户机器上常见）
+        parts = path.split(os.sep)
+        if len(parts) > 2 and parts[1] == "home" and not path.startswith(
+                home + os.sep):
+            return True
+        return False
+
     def _dangerous_rm(self, cmd: str) -> bool:
-        for m in re.finditer(r"\brm\s+-[a-zA-Z]*[rf][a-zA-Z]*\s+(.+)", cmd):
-            for raw in re.findall(r"[^\s;|&]+", m.group(1)):
+        for m in self.RM_RE.finditer(cmd):
+            targets = re.findall(r"[^\s;|&]+", m.group(1) + m.group(2))
+            for raw in targets:
                 if raw.startswith("-"):
                     continue
                 if not (raw.startswith("/") or raw.startswith("~")):
                     continue
-                path = os.path.abspath(os.path.expanduser(raw))
+                path = self._expand(raw)
                 if self._inside(path):
                     continue
                 if path.startswith(("/tmp", "/dev/null", "/var/tmp")):
                     continue
-                # 家目录里的具体子目录可以删；只有系统目录、整个 home、根目录才拦
-                if path in CRITICAL_DIRS:
-                    return True
-                if path.startswith(SYSTEM_PREFIX):
+                if self._critical_target(path):
                     return True
         return False
 
@@ -117,7 +157,8 @@ class Policy:
                 return Decision("ask", "dangerous_command",
                                 "要执行这条命令吗？", cmd)
             outside = self.outside_write(cmd)
-            if outside and self.mode == "strict":
+            if outside and (self.mode == "strict"
+                            or self._critical_target(outside)):
                 return Decision("ask", f"outside_write:{outside}",
                                 f"这条命令会改动工作区外的 {outside}，确定吗？",
                                 cmd)
@@ -127,7 +168,7 @@ class Policy:
         if tool == "write_file":
             path = self.resolve(args.get("path", ""))
             if not self._inside(path):
-                if self.mode == "strict":
+                if self.mode == "strict" or self._critical_target(path):
                     return Decision("ask", "outside_write",
                                     "要写工作区外的文件吗？", path)
                 return Decision("allow", "outside_write")
