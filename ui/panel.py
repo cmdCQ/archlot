@@ -61,6 +61,7 @@ class Panel:
         self._awaiting_confirm = False
         self._confirm_event = None
         self._confirm_ok = False
+        self.confirm_timeout = 180.0
         self._status_start = 0.0
         self._status_timer = 0
         self._effort = "default"
@@ -345,7 +346,11 @@ class Panel:
         self.entry.set_width_chars(1)
         # GTK 4.24 的 Wayland text-input 在中文 preedit 期间不更新光标；
         # 显式走 fcitx5 的 GTK 模块，由应用内 IM 处理 preedit 光标。
-        self.entry.set_property("im-module", "fcitx5")
+        # 老版本 GTK 没有 im-module 属性，或用户用的是 ibus：忽略即可。
+        try:
+            self.entry.set_property("im-module", "fcitx5")
+        except TypeError:
+            log.info("当前 GTK 不支持 im-module，沿用系统输入法")
         self.entry.set_placeholder_text("问点什么，或者让我去做")
         self.entry.connect("activate", self.on_send)
         send = Gtk.Button(label="↑")
@@ -586,7 +591,9 @@ class Panel:
         self._confirm_event = event
         self._confirm_ok = False
         self._ui(self._show_confirm_main, title, detail)
-        event.wait()
+        answered = event.wait(timeout=self.confirm_timeout)
+        if not answered:
+            log.warning("确认超时（%ss），按拒绝处理", self.confirm_timeout)
         self._ui(self._hide_confirm_main)
         return self._confirm_ok
 
@@ -735,6 +742,14 @@ class Panel:
             # 让整个 set_markup 解析失败，流式文字会整段卡住。1 已经不可见。
             alpha = "58982" if self._stream_blink else "1"
             body += (f'<span foreground="#b9a7f5" alpha="{alpha}">▍</span>')
+        try:
+            # GTK 对非法 markup 只打警告然后把标签设成原文（不抛异常），
+            # 所以先自己 parse 一遍，失败就直接走纯文本。
+            Pango.parse_markup(body, -1, "")
+        except GLib.Error as exc:
+            log.warning("markup 解析失败，退回纯文本：%s", exc.message)
+            self._stream_label.set_text(self._stream_raw)
+            return
         self._stream_label.set_markup(body)
 
     def _blink_stream(self):
@@ -926,6 +941,10 @@ class Panel:
             self.win.present()
         self.win.set_opacity(1.0)
         self._apply_appearance()
+        if not getattr(self.cfg, "api_key", ""):
+            self._ui(self._append_notice_main,
+                     "还没有 API key：编辑 ~/.config/archlot/config.json 的 "
+                     "api_key，或 export DEEPSEEK_API_KEY 后重启。")
         self._place()
         self._fade_in()
         if self._setup_active:

@@ -58,12 +58,16 @@ def niri_json(*args, timeout=5):
 
 
 def screen_size():
+    """整个 layout 的逻辑尺寸（grim 不带 -o 时截的就是这个范围）。"""
     outs = niri_json("outputs") or {}
+    w = h = 0
     for out in outs.values():
-        lg = out.get("logical")
-        if lg:
-            return lg["width"], lg["height"]
-    return 1920, 1080
+        lg = out.get("logical") or {}
+        if not lg:
+            continue
+        w = max(w, int(lg.get("x", 0)) + int(lg["width"]))
+        h = max(h, int(lg.get("y", 0)) + int(lg["height"]))
+    return (w, h) if w and h else (1920, 1080)
 
 
 def list_windows():

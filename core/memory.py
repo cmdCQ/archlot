@@ -325,8 +325,8 @@ class Memory:
             except (ValueError, TypeError):
                 ts = now - 86400 * 30
             age_days = max(0.0, (now - ts) / 86400)
-            # bm25 越小越相关，叠加时间衰减
-            score = float(rank) - age_days * 0.05
+            # bm25 是负值且越小越相关；旧记忆应该往后排，所以加正数
+            score = float(rank) + age_days * 0.05
             if "经验" in (tags or ""):
                 score -= 0.4  # 经验优先浮上来
             scored.append((score, fid, text, tags))

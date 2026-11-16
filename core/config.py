@@ -15,7 +15,11 @@ CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 GEOM_PATH = os.path.join(CONFIG_DIR, "window.json")
 APPEARANCE_PATH = os.path.join(CONFIG_DIR, "appearance.json")
 MEMORY_DIR = os.path.join(CONFIG_DIR, "memory")
-LOG_PATH = "/tmp/archlot-app.log"
+STATE_DIR = os.path.join(
+    os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"),
+    "archlot")
+# 环境变量优先，方便用户/开发者临时换位置
+LOG_PATH = os.environ.get("ARCHLOT_LOG") or os.path.join(STATE_DIR, "app.log")
 DEFAULT_WORKSPACE = os.path.expanduser("~/archlot-workspace")
 
 
@@ -39,9 +43,12 @@ class Config:
     @classmethod
     def load(cls, path: str = CONFIG_PATH) -> "Config":
         raw = {}
+        missing = False
         try:
             with open(path) as f:
                 raw = json.load(f)
+        except FileNotFoundError:
+            missing = True
         except (OSError, json.JSONDecodeError):
             raw = {}
         known = {f.name for f in fields(cls)}
@@ -54,7 +61,22 @@ class Config:
         if not isinstance(cfg.onboarding_done, bool):
             cfg.onboarding_done = str(cfg.onboarding_done).strip().lower() in (
                 "1", "true", "yes", "on")
+        if missing:
+            # 首次运行就落一份可编辑的配置，用户不用自己去 cp
+            try:
+                cls.save(cfg, path)
+            except OSError:
+                pass
         return cfg
+
+    @classmethod
+    def save(cls, cfg: "Config", path: str = CONFIG_PATH) -> None:
+        atomic_write_json(path, {f.name: getattr(cfg, f.name)
+                                 for f in fields(cls)})
+        try:
+            os.chmod(path, 0o600)     # 里面放着 API key
+        except OSError:
+            pass
 
 
 def atomic_write_json(path: str, data) -> None:

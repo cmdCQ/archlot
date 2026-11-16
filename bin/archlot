@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Archlot：GTK4 用 GL 渲染（Vulkan 在 resize 时 swapchain 会卡）
-# 解析自身真实路径，安装目录和软链接都能用。
+# 启动 Archlot。不写死安装路径：脚本在 <repo>/bin/ 下，入口在上一级。
 set -euo pipefail
-SELF=$(readlink -f -- "${BASH_SOURCE[0]}")
-ROOT=$(cd -- "$(dirname -- "$SELF")/.." && pwd)
-export GSK_RENDERER=gl
-exec /usr/bin/python3 "$ROOT/archlot.py" "$@"
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+ROOT="$(dirname "$(dirname "$SELF")")"
+PY="${ARCHLOT_PYTHON:-/usr/bin/python3}"
+export GSK_RENDERER="${GSK_RENDERER:-gl}"
+exec "$PY" "$ROOT/archlot.py" "$@"
